@@ -341,4 +341,5 @@ typedef int __bitwise __kernel_rwf_t;
 /* mask of flags supported by the kernel */
 #define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT |\
 			 RWF_APPEND)
+
 #endif /* _UAPI_LINUX_FS_H */
