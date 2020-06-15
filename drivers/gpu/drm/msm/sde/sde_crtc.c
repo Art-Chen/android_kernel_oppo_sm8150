@@ -5483,6 +5483,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		if (pstates[i].sde_pstate)
 			pstates[i].sde_pstate->is_skip = false;
 	}
+        pr_err("Art_Chen :Check Fingerprint layer, reason: fp_index is %d, fppressed_index is %d aod_index is %d\n", fp_index, fppressed_index, aod_index);
 
 	if (!is_dsi_panel(cstate->base.crtc))
 		return 0;
@@ -5585,7 +5586,21 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		cstate->fingerprint_mode = false;
 		cstate->fingerprint_pressed = false;
 	}
+	
+	if (fp_mode == 1 && !dimlayer_hbm) {
+		cstate->fingerprint_mode = true;
+		cstate->fingerprint_pressed = true;
+		return 0;
+	} else if (lcd_closebl_flag_fp) {
+		oppo_underbrightness_alpha = 0;
+		cstate->fingerprint_dim_layer = NULL;
+		cstate->fingerprint_mode = false;
+		oppo_force_screenfp = false;
+		dimlayer_hbm = false;
+		cstate->fingerprint_pressed = false;
 
+		return 0;
+	}
 	return 0;
 }
 #endif /* VENDOR_EDIT */
