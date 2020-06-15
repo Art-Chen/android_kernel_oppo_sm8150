@@ -41,7 +41,7 @@ ccflags-y += -I$(srctree)/drivers/misc/mediatek/masp/asfv2/asf_inc
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/masp/asfv2/asf_export_inc
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/masp/asfv2/module
 else
-DEFS_PLATFORM = -DCONFIG_OPPO_BSP_SECCOM_PLATFORM=0
+DEFS_PLATFORM = -DCONFIG_OPPO_BSP_SECCOM_PLATFORM=855
 endif
 
 ifneq ($(TARGET_PRODUCT),qssi)
