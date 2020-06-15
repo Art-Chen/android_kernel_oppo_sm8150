@@ -272,14 +272,32 @@ DTC ?= $(objtree)/scripts/dtc/dtc
 
 # Disable noisy checks by default
 ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),)
-DTC_FLAGS += -Wno-unit_address_vs_reg
+DTC_FLAGS += -Wno-unit_address_vs_reg \
+	-Wno-simple_bus_reg \
+	-Wno-unit_address_format \
+	-Wno-pci_bridge \
+	-Wno-pci_device_bus_num \
+	-Wno-pci_device_reg \
+	-Wno-avoid_default_addr_size \
+	-Wno-interrupts_property \
+	-Wno-reg_format \
+	-Wno-gpios_property
+endif
+
+ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),2)
+DTC_FLAGS += -Wnode_name_chars_strict \
+	-Wproperty_name_chars_strict
 endif
 ifeq ($(DTC_EXT),)
 DTC_FLAGS += -Wno-simple_bus_reg \
 	-Wno-unit_address_format \
 	-Wno-pci_bridge \
 	-Wno-pci_device_bus_num \
-	-Wno-pci_device_reg
+	-Wno-pci_device_reg \
+	-Wno-avoid_default_addr_size \
+	-Wno-interrupts_property \
+	-Wno-reg_format \
+	-Wno-gpios_property
 endif
 
 ifeq ($(KBUILD_ENABLE_EXTRA_GCC_CHECKS),2)
@@ -340,7 +358,7 @@ cmd_cat = (cat $(filter-out FORCE,$^) > $@) || (rm -f $@; false)
 size_append = printf $(shell						\
 dec_size=0;								\
 for F in $1; do								\
-	fsize=$$(stat -c "%s" $$F);					\
+	fsize=$$(wc -c < $$F);						\
 	dec_size=$$(expr $$dec_size + $$fsize);				\
 done;									\
 printf "%08x\n" $$dec_size |						\
