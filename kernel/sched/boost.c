@@ -53,12 +53,9 @@ static void set_boost_policy(int type)
 		return;
 	}
 
-	if (min_possible_efficiency != max_possible_efficiency) {
-		boost_policy = SCHED_BOOST_ON_BIG;
-		return;
-	}
-
-	boost_policy = SCHED_BOOST_ON_ALL;
+	// attackworld modify for sm8150
+	boost_policy = SCHED_BOOST_ON_BIG;
+	return;
 }
 
 static bool verify_boost_params(int type)
