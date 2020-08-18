@@ -1,0 +1,1 @@
+obj-$(CONFIG_SND_SOC_MAX98937) += max98937.o

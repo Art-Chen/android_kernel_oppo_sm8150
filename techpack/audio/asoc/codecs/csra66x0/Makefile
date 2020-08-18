@@ -1,0 +1,1 @@
+obj-$(CONFIG_SND_SOC_CSRA66X0) += csra66x0.o
