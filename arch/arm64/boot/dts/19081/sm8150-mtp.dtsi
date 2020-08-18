@@ -409,7 +409,7 @@
 
 //#ifdef VENDOR_EDIT
 //ruhong.huang@CN.NFC.Basic.Hardware.2046983, 2019/06/18,
-//Modify for dtsi for NXP NFC¡ê?set VEN pin to gpio36 and remove esepwr
+//Modify for dtsi for NXP NFC set VEN pin to gpio36 and remove esepwr
 &qupv3_se9_i2c {
 	status = "ok";
 	nq@28 {
