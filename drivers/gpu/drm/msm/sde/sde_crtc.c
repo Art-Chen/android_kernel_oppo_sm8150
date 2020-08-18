@@ -5483,6 +5483,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		if (pstates[i].sde_pstate)
 			pstates[i].sde_pstate->is_skip = false;
 	}
+	if (fppressed_index != -1)
         pr_err("Art_Chen :Check Fingerprint layer, reason: fp_index is %d, fppressed_index is %d aod_index is %d\n", fp_index, fppressed_index, aod_index);
 
 	if (!is_dsi_panel(cstate->base.crtc))

@@ -124,9 +124,9 @@ int dsi_panel_hbm_on(struct dsi_panel *panel) {
 		goto error;
 	}
 
-	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ON);
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_AOD_HBM_ON);
 	if (rc) {
-		pr_err("[%s] failed to send DSI_CMD_HBM_ON cmds, rc=%d\n",
+		pr_err("[%s] failed to send DSI_CMD_AOD_HBM_ON cmds, rc=%d\n",
 		       panel->name, rc);
 	}
 
@@ -788,17 +788,26 @@ int oppo_dsi_hbm_backlight_setting(bool enabled)
 		pr_err("failed for: %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	if(enabled){
-		ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_ON);
-		if (ret) {
-			pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_ON cmds, rc=%d\n",display->panel->name, ret);
+	if (!hbm_mode) {
+		if (enabled) {
+			ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_ON);
+			if (ret) {
+				pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_ON cmds, rc=%d\n",display->panel->name, ret);
+			}
+		} else {
+			ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_OFF);
+			if (ret) {
+				pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_OFF cmds, rc=%d\n",display->panel->name, ret);
+			}
 		}
 	} else {
-        ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_OFF);
+		pr_err("[%s] failed to set HBM backlight mode, Screen is in HBM Mode now\n",display->panel->name);
+		ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_ON);
 		if (ret) {
-			pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_OFF cmds, rc=%d\n",display->panel->name, ret);
+			pr_err("[%s] failed to send DSI_CMD_AOD_HBM_ON cmds, rc=%d\n",display->panel->name, ret);
 		}
 	}
+
 	return ret;
 }
 
