@@ -770,7 +770,7 @@
 				type = "passive";
 			};
 			active_config1: active-config1 {
-				temperature = <45000>;
+				temperature = <95000>;
 				hysteresis = <1000>;
 				type = "passive";
 			};
