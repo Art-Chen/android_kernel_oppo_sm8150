@@ -34,18 +34,6 @@
 #include <linux/sched/sysctl.h>
 
 #include <trace/events/power.h>
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-#include <linux/proc_fs.h>
-#include <linux/mm.h>
-#include <linux/cred.h>
-
-#define LIST_MAX_NUM        (1000)
-#define UNITY_MAX_CPUFREQ   (2419200)
-static struct mutex unity_mutex;
-static uid_t whitelist_uid[LIST_MAX_NUM];
-static unsigned int unity_size = 0;
-#endif /* VENDOR_EDIT */
 
 static LIST_HEAD(cpufreq_policy_list);
 
@@ -229,14 +217,6 @@ unsigned int cpufreq_generic_get(unsigned int cpu)
 	return clk_get_rate(policy->clk) / 1000;
 }
 EXPORT_SYMBOL_GPL(cpufreq_generic_get);
-
-#ifdef VENDOR_EDIT
-struct list_head *get_cpufreq_policy_list(void)
-{
-	    return &cpufreq_policy_list;
-}
-EXPORT_SYMBOL(get_cpufreq_policy_list);
-#endif /* VENDOR_EDIT */
 
 /**
  * cpufreq_cpu_get: returns policy for a cpu and marks it busy.
@@ -700,12 +680,7 @@ static bool should_use_cached_freq(int cpu)
 	return is_sched_lib_based_app(current->pid);
 }
 
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-static ssize_t qcom_show_cpuinfo_max_freq(struct cpufreq_policy *policy, char *buf)
-#else
 static ssize_t show_cpuinfo_max_freq(struct cpufreq_policy *policy, char *buf)
-#endif
 {
 	unsigned int freq = policy->cpuinfo.max_freq;
 
@@ -716,60 +691,6 @@ static ssize_t show_cpuinfo_max_freq(struct cpufreq_policy *policy, char *buf)
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n", freq);
 }
-
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-bool filterByProcName(uid_t proc_uid) {
-    struct pid *pid = NULL;
-    struct task_struct *task = NULL;
-    const struct cred *cred = NULL;
-    int nr = task_tgid_vnr(current);
-    pid = find_get_pid(nr);
-    if(pid) {
-        task = get_pid_task(pid, PIDTYPE_PID);
-        put_pid(pid);
-
-        if(task) {
-            cred = __task_cred(task);
-            if(__kuid_val(cred->uid) == proc_uid) {
-                put_task_struct(task);
-                return true;
-            }
-        }
-    }
-    if(task)
-        put_task_struct(task);
-    return false;
-}
-#endif /* VENDOR_EDIT */
-
-
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-// Game app unity engine reads CPU max frequency. If CPU max frequency
-// is bigger than UNITY_MAX_CPUFREQ "2419200", return value "2419200" to Unity.
-#define show_cpuinfo_max_freq(file_name, object) \
-static ssize_t show_##file_name \
-(struct cpufreq_policy *policy, char *buf) \
-{ \
-    int i = 0; \
-    mutex_lock(&unity_mutex); \
-    for ( i = 0; i < unity_size; i++ ) { \
-        if ( filterByProcName(whitelist_uid[i]) \
-                && policy->object > UNITY_MAX_CPUFREQ ) { \
-            mutex_unlock(&unity_mutex); \
-            return sprintf(buf, "%u\n", UNITY_MAX_CPUFREQ); \
-        } \
-    } \
-    mutex_unlock(&unity_mutex); \
-	return qcom_show_cpuinfo_max_freq(policy, buf); \
-} \
-
-#endif /* VENDOR_EDIT */
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-show_cpuinfo_max_freq(cpuinfo_max_freq, cpuinfo.max_freq);
-#endif /* VENDOR_EDIT */
 
 __weak unsigned int arch_freq_get_on_cpu(int cpu)
 {
@@ -804,6 +725,9 @@ static ssize_t store_##file_name					\
 {									\
 	int ret, temp;							\
 	struct cpufreq_policy new_policy;				\
+									\
+	if (&policy->object == &policy->min)				\
+		return count;						\
 									\
 	memcpy(&new_policy, policy, sizeof(*policy));			\
 	new_policy.min = policy->user_policy.min;			\
@@ -1974,8 +1898,10 @@ unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 
         ret = cpufreq_driver->fast_switch(policy, target_freq);
-	if (ret)
+	if (ret) {
 		cpufreq_times_record_transition(policy, ret);
+		cpufreq_stats_record_transition(policy, ret);
+	}
 
 	return ret;
 }
@@ -2589,74 +2515,6 @@ static int cpuhp_cpufreq_offline(unsigned int cpu)
 	return 0;
 }
 
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-static ssize_t unity_proc_write(struct file *file, const char __user *buf,
-		size_t count,loff_t *off)
-{
-	int ret = 0;
-	int mode = 0; /*0 means add one | 1 means clear all*/
-	int uid = 0;
-	int i = 0;
-	char buffer[64] = {0};
-
-	if (count > 64 ){
-		count = 64;
-	}
-	if (copy_from_user(buffer, buf, count)) {
-		printk(KERN_ERR "%s: read proc input error.\n", __func__);
-		return -EFAULT;
-	}
-	ret = sscanf(buffer, "%d %d", &mode, &uid);
-	if (ret <= 0){
-		printk(KERN_ERR "%s: input error\n", __func__);
-		return -EINVAL;
-	}
-	if (mode < 0 || mode > 1)
-		return -EINVAL;
-	if (uid < 10000 || uid > 100000)
-		return -EINVAL;
-
-	mutex_lock(&unity_mutex);
-	switch (mode){
-	case 0:
-		unity_size = 0;
-		break;
-	case 1:
-		if(unity_size >= LIST_MAX_NUM){
-			mutex_unlock(&unity_mutex);
-			return -ENOSPC;
-		}
-		for (i = 0; i < unity_size; i++){
-			if ( whitelist_uid[i] == uid ){
-				mutex_unlock(&unity_mutex);
-				return count;
-			}
-		}
-		whitelist_uid[unity_size++] = uid;
-		break;
-	}
-	mutex_unlock(&unity_mutex);
-	return count;
-}
-
-static struct file_operations unity_proc_fops = {
-	.write = unity_proc_write,
-};
-
-static int oppo_unity_cpufreq_init()
-{
-	static int init_once = 0;
-	if (init_once == 0){
-		init_once = 1;
-		proc_create("unityuid", 0220, NULL, &unity_proc_fops);
-		mutex_init(&unity_mutex);
-		printk(KERN_INFO "UNITY cpufreq init.\n", __func__);
-	}
-	return 0;
-}
-#endif /* VENDOR_EDIT */
-
 /**
  * cpufreq_register_driver - register a CPU Frequency driver
  * @driver_data: A struct cpufreq_driver containing the values#
@@ -2705,12 +2563,6 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		if (ret)
 			goto err_null_driver;
 	}
-#ifdef VENDOR_EDIT
-//Zhenjian.Jiang@PSW.BSP.STABILITY.CPUFREQ, 2019.03.14. add for support changing show cpu max freq
-	ret = oppo_unity_cpufreq_init();
-	if (ret)
-		goto err_boost_unreg;
-#endif /* VENDOR_EDIT */
 
 	ret = subsys_interface_register(&cpufreq_interface);
 	if (ret)
@@ -2785,14 +2637,6 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 }
 EXPORT_SYMBOL_GPL(cpufreq_unregister_driver);
 
-/*
- * Stop cpufreq at shutdown to make sure it isn't holding any locks
- * or mutexes when secondary CPUs are halted.
- */
-static struct syscore_ops cpufreq_syscore_ops = {
-	.shutdown = cpufreq_suspend,
-};
-
 struct kobject *cpufreq_global_kobject;
 EXPORT_SYMBOL(cpufreq_global_kobject);
 
@@ -2803,8 +2647,6 @@ static int __init cpufreq_core_init(void)
 
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq", &cpu_subsys.dev_root->kobj);
 	BUG_ON(!cpufreq_global_kobject);
-
-	register_syscore_ops(&cpufreq_syscore_ops);
 
 	return 0;
 }
