@@ -3,7 +3,7 @@
  *
  * This code is based on drivers/scsi/ufs/ufshcd.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
- * Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
@@ -49,10 +49,6 @@
 #include "ufs-debugfs.h"
 #include "ufs-qcom.h"
 
-#ifdef VENDOR_EDIT
-//zhenjian Jiang@PSW.BSP.Storage.UFS, 2018-05-04 add for ufs device in /proc/devinfo 
-#include <soc/oppo/device_info.h>
-#endif
 #ifdef CONFIG_DEBUG_FS
 
 static int ufshcd_tag_req_type(struct request *rq)
@@ -212,13 +208,7 @@ static void ufshcd_update_uic_error_cnt(struct ufs_hba *hba, u32 reg, int type)
 				 UTP_TASK_REQ_COMPL |\
 				 UFSHCD_ERROR_MASK)
 /* UIC command timeout, unit: ms */
-#ifdef VENDOR_EDIT
-/* Kai Huang@BSP.Storage.Ufs 2019/12/17 Case:04354401  add qualcomm patch for logic to check uic
-command timeout errors  */
-#define UIC_CMD_TIMEOUT	1000
-#else
-#define UIC_CMD_TIMEOUT 500
-#endif
+#define UIC_CMD_TIMEOUT	500
 
 /* NOP OUT retries waiting for NOP IN response */
 #define NOP_OUT_RETRIES    10
@@ -421,6 +411,8 @@ static struct ufs_dev_fix ufs_fixups[] = {
 	UFS_FIX(UFS_VENDOR_TOSHIBA, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM),
 	UFS_FIX(UFS_VENDOR_TOSHIBA, UFS_ANY_MODEL,
+		UFS_DEVICE_QUIRK_NO_LINK_OFF),
+	UFS_FIX(UFS_VENDOR_WDC, UFS_ANY_MODEL,
 		UFS_DEVICE_QUIRK_NO_LINK_OFF),
 	UFS_FIX(UFS_VENDOR_TOSHIBA, "THGLF2G9C8KBADG",
 		UFS_DEVICE_QUIRK_PA_TACTIVATE),
@@ -2057,6 +2049,26 @@ static void ufshcd_resume_clkscaling(struct ufs_hba *hba)
 		devfreq_resume_device(hba->devfreq);
 }
 
+static int bogus_clkscale_enable = 1;
+static ssize_t ufshcd_bogus_clkscale_enable_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", bogus_clkscale_enable);
+}
+
+static ssize_t ufshcd_bogus_clkscale_enable_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 value;
+
+	if (kstrtou32(buf, 0, &value))
+		return -EINVAL;
+
+	bogus_clkscale_enable = !!value;
+
+	return count;
+}
+
 static ssize_t ufshcd_clkscale_enable_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -2064,11 +2076,6 @@ static ssize_t ufshcd_clkscale_enable_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", hba->clk_scaling.is_allowed);
 }
-
-#ifdef VENDOR_EDIT
-//cuixiaogang@SRC.hypnus.2018.05.09. add mutex lock here for race condition
-static DEFINE_MUTEX(ufshcd_clkscale_lock);
-#endif /* VENDOR_EDIT */
 
 static ssize_t ufshcd_clkscale_enable_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -2081,10 +2088,6 @@ static ssize_t ufshcd_clkscale_enable_store(struct device *dev,
 		return -EINVAL;
 
 	value = !!value;
-#ifdef VENDOR_EDIT
-//cuixiaogang@SRC.hypnus.2018.05.09. add mutex lock here for race condition
-	mutex_lock(&ufshcd_clkscale_lock);
-#endif /* VENDOR_EDIT */
 	if (value == hba->clk_scaling.is_allowed)
 		goto out;
 
@@ -2109,73 +2112,18 @@ static ssize_t ufshcd_clkscale_enable_store(struct device *dev,
 	ufshcd_release(hba, false);
 	pm_runtime_put_sync(hba->dev);
 out:
-#ifdef VENDOR_EDIT
-//cuixiaogang@SRC.hypnus.2018.05.09. add mutex lock here for race condition
-	mutex_unlock(&ufshcd_clkscale_lock);
-#endif /* VENDOR_EDIT */
 	return count;
 }
 
-#ifdef VENDOR_EDIT
-//cuixiaogang@SRC.hypnus.2018.04.02. add support for ufs clk scale
-int ufshcd_clk_scaling_enable(struct ufs_hba *hba, int val)
+static void ufshcd_clkscaling_init_sysfs(struct ufs_hba *hba, bool bogus)
 {
-	bool allowed = !!val;
-	int err;
-	unsigned long flags;
-
-	if (!hba)
-		return 0;
-
-	dev_dbg(hba->dev, "%s:clk scaling %d\n", __func__,
-			(int)allowed);
-	spin_lock_irqsave(hba->host->host_lock, flags);
-	if (hba->clk_gating.is_suspended ||
-			hba->is_sys_suspended || hba->ufshcd_state == UFSHCD_STATE_ERROR
-			|| hba->ufshcd_state == UFSHCD_STATE_RESET) {
-		spin_unlock_irqrestore(hba->host->host_lock, flags);
-		dev_info(hba->dev, "%s: forbid to set clk scaling %d %d %d\n",
-					__func__, hba->clk_gating.is_suspended,
-					hba->is_sys_suspended, hba->ufshcd_state);
-		return 0;
-	}
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
-
-	mutex_lock(&ufshcd_clkscale_lock);
-	if (hba->clk_scaling.is_allowed == allowed)
-		goto out;
-
-	pm_runtime_get_sync(hba->dev);
-	ufshcd_hold(hba, false);
-
-	cancel_work_sync(&hba->clk_scaling.suspend_work);
-	cancel_work_sync(&hba->clk_scaling.resume_work);
-
-	hba->clk_scaling.is_allowed = allowed;
-
-	if (val) {
-		ufshcd_resume_clkscaling(hba);
+	if (bogus) {
+		hba->clk_scaling.enable_attr.show = ufshcd_bogus_clkscale_enable_show;
+		hba->clk_scaling.enable_attr.store = ufshcd_bogus_clkscale_enable_store;
 	} else {
-		ufshcd_suspend_clkscaling(hba);
-		err = ufshcd_devfreq_scale(hba, true);
-		if (err)
-			dev_err(hba->dev, "%s: failed to scale clocks up %d\n",
-					__func__, err);
+		hba->clk_scaling.enable_attr.show = ufshcd_clkscale_enable_show;
+		hba->clk_scaling.enable_attr.store = ufshcd_clkscale_enable_store;
 	}
-
-	ufshcd_release(hba, false);
-	pm_runtime_put_sync(hba->dev);
-out:
-	mutex_unlock(&ufshcd_clkscale_lock);
-	return 0;
-}
-EXPORT_SYMBOL(ufshcd_clk_scaling_enable);
-#endif
-
-static void ufshcd_clkscaling_init_sysfs(struct ufs_hba *hba)
-{
-	hba->clk_scaling.enable_attr.show = ufshcd_clkscale_enable_show;
-	hba->clk_scaling.enable_attr.store = ufshcd_clkscale_enable_store;
 	sysfs_attr_init(&hba->clk_scaling.enable_attr.attr);
 	hba->clk_scaling.enable_attr.attr.name = "clkscale_enable";
 	hba->clk_scaling.enable_attr.attr.mode = 0644;
@@ -2201,6 +2149,8 @@ static void ufshcd_ungate_work(struct work_struct *work)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 	ufshcd_hba_vreg_set_hpm(hba);
 	ufshcd_enable_clocks(hba);
+
+	ufshcd_enable_irq(hba);
 
 	/* Exit from hibern8 */
 	if (ufshcd_can_hibern8_during_gating(hba)) {
@@ -2365,6 +2315,8 @@ static void ufshcd_gate_work(struct work_struct *work)
 		}
 		ufshcd_set_link_hibern8(hba);
 	}
+
+	ufshcd_disable_irq(hba);
 
 	/*
 	 * If auto hibern8 is supported and enabled then the link will already
@@ -3157,7 +3109,8 @@ int ufshcd_copy_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	memcpy(&query_res->upiu_res, &lrbp->ucd_rsp_ptr->qr, QUERY_OSF_SIZE);
 
 	/* Get the descriptor */
-	if (lrbp->ucd_rsp_ptr->qr.opcode == UPIU_QUERY_OPCODE_READ_DESC) {
+	if (hba->dev_cmd.query.descriptor &&
+	    lrbp->ucd_rsp_ptr->qr.opcode == UPIU_QUERY_OPCODE_READ_DESC) {
 		u8 *descp = (u8 *)lrbp->ucd_rsp_ptr +
 				GENERAL_UPIU_REQUEST_SIZE;
 		u16 resp_len;
@@ -3244,12 +3197,8 @@ ufshcd_dispatch_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
 	/* Write UIC Cmd */
 	ufshcd_writel(hba, uic_cmd->command & COMMAND_OPCODE_MASK,
 		      REG_UIC_COMMAND);
-#ifdef VENDOR_EDIT
-/* Kai Huang@BSP.Storage.Ufs 2019/12/17 Case:04354401  add qualcomm patch for logic to check uic
-command timeout errors  */
 	/* Make sure that UIC command is committed immediately */
 	wmb();
-#endif
 }
 
 /**
@@ -3919,6 +3868,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	err = ufshcd_map_sg(hba, lrbp);
 	if (err) {
+		ufshcd_release(hba, false);
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
@@ -4157,10 +4107,7 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 {
 	struct ufshcd_lrb *lrbp;
 	int err;
-#ifdef VENDOR_EDIT
-//Tong.Han@Bsp.Group.Tp,2018-6-4,Added for Dealth_healer
-	int tag = 0;
-#endif
+	int tag;
 	struct completion wait;
 	unsigned long flags;
 	bool has_read_lock = false;
@@ -4492,10 +4439,10 @@ static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 		goto out_unlock;
 	}
 
-	hba->dev_cmd.query.descriptor = NULL;
 	*buf_len = be16_to_cpu(response->upiu_res.length);
 
 out_unlock:
+	hba->dev_cmd.query.descriptor = NULL;
 	mutex_unlock(&hba->dev_cmd.lock);
 out:
 	ufshcd_release_all(hba);
@@ -4615,12 +4562,6 @@ int ufshcd_map_desc_id_to_length(struct ufs_hba *hba,
 	case QUERY_DESC_IDN_RFU_1:
 		*desc_len = 0;
 		break;
-#ifdef VENDOR_EDIT
-	//xiaofan.yang@PSW.TECH.Stability, 2019/03/15,Add for check storage endurance
-	case QUERY_DESC_IDN_HEALTH:
-		*desc_len = hba->desc_size.hlth_desc;
-		break;
-#endif
 	default:
 		*desc_len = 0;
 		return -EINVAL;
@@ -4728,6 +4669,115 @@ static inline int ufshcd_read_power_desc(struct ufs_hba *hba,
 int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size)
 {
 	return ufshcd_read_desc(hba, QUERY_DESC_IDN_DEVICE, 0, buf, size);
+}
+
+int ufshcd_read_geometry_desc(struct ufs_hba *hba, u8 *buf, u32 size)
+{
+	return ufshcd_read_desc(hba, QUERY_DESC_IDN_GEOMETRY, 0, buf, size);
+}
+
+static int ufs_get_capacity_info(struct ufs_hba *hba,  u64 *pcapacity)
+{
+	int err;
+	u8 geometry_buf[QUERY_DESC_GEOMETRY_DEF_SIZE];
+
+	err = ufshcd_read_geometry_desc(hba, geometry_buf,
+		QUERY_DESC_GEOMETRY_DEF_SIZE);
+
+	if (err)
+		goto out;
+
+	*pcapacity = (u64)geometry_buf[0x04] << 56 |
+		(u64)geometry_buf[0x04 + 1] << 48 |
+		(u64)geometry_buf[0x04 + 2] << 40 |
+		(u64)geometry_buf[0x04 + 3] << 32 |
+		(u64)geometry_buf[0x04 + 4] << 24 |
+		(u64)geometry_buf[0x04 + 5] << 16 |
+		(u64)geometry_buf[0x04 + 6] << 8 |
+		(u64)geometry_buf[0x04 + 7];
+
+	printk("ufs_get_capacity_info size = 0x%llx", *pcapacity);
+
+out:
+	return err;
+}
+
+static char *ufs_get_capacity_size(u64 capacity)
+{
+	if (capacity == 0x1D62000) { //16G
+		return "16G";
+	} else if (capacity == 0x3B9E000) { //32G
+		return "32G";
+	} else if (capacity == 0x7734000) { //64G
+		return "64G";
+	} else if (capacity == 0xEE60000) { //128G
+		return "128G";
+	} else if (capacity == 0xEE64000) { //128G V4
+		return "128G";
+	} else if (capacity == 0x1DCBC000) {
+		return "256G";
+	} else {
+		return "0G";
+	}
+}
+
+char ufs_vendor_and_rev[32] = {'\0'};
+char ufs_product_id[32] = {'\0'};
+int ufs_fill_info(struct ufs_hba *hba)
+{
+	int err = 0;
+	u64 ufs_capacity = 0;
+	char ufs_vendor[9] = {'\0'};
+	char ufs_rev[6] = {'\0'};
+
+	/* Error Handle: Before filling ufs info, we must confirm sdev_ufs_device structure is not NULL*/
+	if (!hba->sdev_ufs_device) {
+		dev_err(hba->dev, "%s:hba->sdev_ufs_device is NULL!\n", __func__);
+		goto out;
+	}
+
+	/* Copy UFS info from host controller structure (ex:vendor name, firmware revision) */
+	if (!hba->sdev_ufs_device->vendor) {
+		dev_err(hba->dev, "%s: UFS vendor info is NULL\n", __func__);
+		strlcpy(ufs_vendor, "UNKNOWN", 7);
+	} else {
+		strlcpy(ufs_vendor, hba->sdev_ufs_device->vendor,
+			sizeof(ufs_vendor)-1);
+	}
+
+	if (!hba->sdev_ufs_device->rev) {
+		dev_err(hba->dev, "%s: UFS firmware info is NULL\n", __func__);
+		strlcpy(ufs_rev, "NONE", 4);
+	} else {
+		strlcpy(ufs_rev, hba->sdev_ufs_device->rev, sizeof(ufs_rev)-1);
+	}
+
+	if (!hba->sdev_ufs_device->model) {
+		dev_err(hba->dev, "%s: UFS product id info is NULL\n", __func__);
+		strlcpy(ufs_product_id, "UNKNOWN", 7);
+	} else {
+		strlcpy(ufs_product_id, hba->sdev_ufs_device->model, 16);
+	}
+
+	/* Get UFS storage size*/
+	err = ufs_get_capacity_info(hba, &ufs_capacity);
+	if (err) {
+		dev_err(hba->dev, "%s: Failed getting capacity info\n", __func__);
+		goto out;
+	}
+
+	/* Combine vendor name with firmware revision */
+	strcat(ufs_vendor_and_rev, ufs_vendor);
+	if (strncmp(ufs_vendor, "MICRON", 6) != 0) {
+		strcat(ufs_vendor_and_rev, " ");
+		strcat(ufs_vendor_and_rev, ufs_get_capacity_size(ufs_capacity));
+	}
+	strcat(ufs_vendor_and_rev, " ");
+	strcat(ufs_vendor_and_rev, ufs_rev);
+
+out:
+	return err;
+
 }
 
 /**
@@ -5198,11 +5248,7 @@ static int ufshcd_uic_pwr_ctrl(struct ufs_hba *hba, struct uic_command *cmd)
 	u8 status;
 	int ret;
 	bool reenable_intr = false;
-#ifdef VENDOR_EDIT
-/* Kai Huang@BSP.Storage.Ufs 2019/12/17 Case:04354401  add qualcomm patch for logic to
-check uic command timeout errors  */
-	int wait_retries = 3;
-#endif
+	int wait_retries = 6; /* Allows 3secs max wait time */
 
 	mutex_lock(&hba->uic_cmd_mutex);
 	init_completion(&uic_async_done);
@@ -5228,25 +5274,17 @@ check uic command timeout errors  */
 			cmd->command, cmd->argument3, ret);
 		goto out;
 	}
-#ifdef VENDOR_EDIT
-/* Kai Huang@BSP.Storage.Ufs 2019/12/17 Case:04354401  add qualcomm patch for logic to 
-check uic command timeout errors  */
+
 more_wait:
-#endif
 	if (!wait_for_completion_timeout(hba->uic_async_done,
 					 msecs_to_jiffies(UIC_CMD_TIMEOUT))) {
-#ifdef VENDOR_EDIT
-/* Kai Huang@BSP.Storage.Ufs 2019/12/17 Case:04354401  add qualcomm patch for logic to 
-check uic command timeout errors  */
 		u32 intr_status = 0;
-#endif
+		s64 ts_since_last_intr;
+
 		dev_err(hba->dev,
 			"pwr ctrl cmd 0x%x with mode 0x%x completion timeout\n",
 			cmd->command, cmd->argument3);
-#ifdef VENDOR_EDIT
-/* Kai Huang@BSP.Storage.Ufs 2019/12/17 Case:04354401  add qualcomm patch for logic to
-check uic command timeout errors  */
-                 /*
+		/*
 		 * The controller must have triggered interrupt but ISR couldn't
 		 * run due to interrupt starvation.
 		 * Or ISR must have executed just after the timeout
@@ -5255,24 +5293,24 @@ check uic command timeout errors  */
 		 * wait for little more time for completion.
 		 */
 		intr_status = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
-		if ((intr_status & UFSHCD_UIC_PWR_MASK) ||
-				((hba->ufs_stats.last_intr_status & UFSHCD_UIC_PWR_MASK) &&
-				 ((ktime_get() - hba->ufs_stats.last_intr_ts) <
-				  UIC_CMD_TIMEOUT))) {
-			dev_info(hba->dev,
-					"ufshc triggered pwr ctrl irq, wait little more time for completion\n"
-				);
-			wait_retries--;
+		ts_since_last_intr = ktime_ms_delta(ktime_get(),
+						hba->ufs_stats.last_intr_ts);
 
-			if (wait_retries)
+		if ((intr_status & UFSHCD_UIC_PWR_MASK) ||
+		    ((hba->ufs_stats.last_intr_status & UFSHCD_UIC_PWR_MASK) &&
+		     (ts_since_last_intr < (s64)UIC_CMD_TIMEOUT))) {
+			dev_info(hba->dev, "IS:0x%08x last_intr_sts:0x%08x last_intr_ts:%lld, retry-cnt:%d\n",
+				intr_status, hba->ufs_stats.last_intr_status,
+				hba->ufs_stats.last_intr_ts, wait_retries);
+			if (wait_retries--)
 				goto more_wait;
+
 			/*
 			 * If same state continues event after more wait time,
 			 * something must be hogging CPU.
 			 */
 			BUG_ON(hba->crash_on_err);
 		}
-#endif
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -5371,6 +5409,7 @@ static int ufshcd_link_recovery(struct ufs_hba *hba)
 	 */
 	hba->ufshcd_state = UFSHCD_STATE_ERROR;
 	hba->force_host_reset = true;
+	ufshcd_set_eh_in_progress(hba);
 	schedule_work(&hba->eh_work);
 
 	/* wait for the reset work to finish */
@@ -5731,10 +5770,9 @@ static int ufshcd_config_pwr_mode(struct ufs_hba *hba,
  */
 static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 {
-	int i = 0;
+	int i;
 	int err;
 	bool flag_res = 1;
-	ktime_t timeout;
 
 	err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_SET_FLAG,
 		QUERY_FLAG_IDN_FDEVICEINIT, NULL);
@@ -5745,29 +5783,11 @@ static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 		goto out;
 	}
 
-	/*
-	 * Some vendor devices are taking longer time to complete its internal
-	 * initialization, so set fDeviceInit flag poll time to 5 secs
-	 */
-	timeout = ktime_add_ms(ktime_get(), 5000);
-
-	/* poll for max. 5sec for fDeviceInit flag to clear */
-	while (1) {
-		bool timedout = ktime_after(ktime_get(), timeout);
+	/* poll for max. 1000 iterations for fDeviceInit flag to clear */
+	for (i = 0; i < 1500 && !err && flag_res; i++) {
 		err = ufshcd_query_flag_retry(hba, UPIU_QUERY_OPCODE_READ_FLAG,
-					QUERY_FLAG_IDN_FDEVICEINIT, &flag_res);
-		if (err || !flag_res || timedout)
-			break;
-
-		/*
-		 * Poll for this flag in a tight loop for first 1000 iterations.
-		 * This is same as old logic which is working for most of the
-		 * devices, so continue using the same.
-		 */
-		if (i == 1000)
-			msleep(20);
-		else
-			i++;
+			QUERY_FLAG_IDN_FDEVICEINIT, &flag_res);
+		usleep_range(1000, 1000); // 1ms sleep
 	}
 
 	if (err)
@@ -6562,16 +6582,6 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 					blk_update_latency_hist(&hba->io_lat_s,
 						(rq_data_dir(req) == READ),
 						delta_us);
-#ifdef VENDOR_EDIT
-//yh@BSP.Storage.UFS, 2019-02-19 add for ufs io latency info calculate
-					if (bio_has_data(req->bio) && (delta_us > 5000))
-					{
-						trace_printk("ufs_io_latency:%06lld us, io_type:%s, LBA:%08x, size:%d\n",
-								delta_us, (rq_data_dir(req) == READ) ? "R" : "W",
-								req->bio->bi_iter.bi_sector,
-								cpu_to_be32(cmd->sdb.length));
-					}
-#endif
 				}
 			}
 
@@ -6825,6 +6835,7 @@ static int ufshcd_disable_auto_bkops(struct ufs_hba *hba)
 
 	hba->auto_bkops_enabled = false;
 	trace_ufshcd_auto_bkops_state(dev_name(hba->dev), 0);
+	hba->is_urgent_bkops_lvl_checked = false;
 out:
 	return err;
 }
@@ -6849,6 +6860,7 @@ static void ufshcd_force_reset_auto_bkops(struct ufs_hba *hba)
 		hba->ee_ctrl_mask &= ~MASK_EE_URGENT_BKOPS;
 		ufshcd_disable_auto_bkops(hba);
 	}
+	hba->is_urgent_bkops_lvl_checked = false;
 }
 
 static inline int ufshcd_get_bkops_status(struct ufs_hba *hba, u32 *status)
@@ -7156,8 +7168,6 @@ static void ufshcd_err_handler(struct work_struct *work)
 	 * process of gating when the err handler runs.
 	 */
 	if (unlikely((hba->clk_gating.state != CLKS_ON) &&
-	    (hba->clk_gating.state == REQ_CLKS_OFF &&
-	     ufshcd_is_link_hibern8(hba)) &&
 	    ufshcd_is_auto_hibern8_supported(hba) &&
 	    hba->hibern8_on_idle.is_enabled)) {
 		spin_unlock_irqrestore(hba->host->host_lock, flags);
@@ -7216,8 +7226,8 @@ static void ufshcd_err_handler(struct work_struct *work)
 
 	/*
 	 * if host reset is required then skip clearing the pending
-	 * transfers forcefully because they will automatically get
-	 * cleared after link startup.
+	 * transfers forcefully because they will get cleared during
+	 * host reset and restore
 	 */
 	if (needs_reset)
 		goto skip_pending_xfer_clear;
@@ -7679,10 +7689,7 @@ static int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
 	struct utp_upiu_task_req *task_req_upiup;
 	struct Scsi_Host *host;
 	unsigned long flags;
-#ifdef VENDOR_EDIT
-//Tong.Han@Bsp.Group.Tp,2018-6-4,Added for Dealth_healer
-	int free_slot = 0;
-#endif
+	int free_slot;
 	int err;
 	int task_tag;
 
@@ -8030,9 +8037,15 @@ static int ufshcd_host_reset_and_restore(struct ufs_hba *hba)
 	int err;
 	unsigned long flags;
 
-	/* Reset the host controller */
+	/*
+	 * Stop the host controller and complete the requests
+	 * cleared by h/w
+	 */
 	spin_lock_irqsave(hba->host->host_lock, flags);
 	ufshcd_hba_stop(hba, false);
+	hba->silence_err_logs = true;
+	ufshcd_complete_requests(hba);
+	hba->silence_err_logs = false;
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	/* scale up clocks to max frequency before full reinitialization */
@@ -8255,19 +8268,19 @@ static u32 ufshcd_find_max_sup_active_icc_level(struct ufs_hba *hba,
 		goto out;
 	}
 
-	if (hba->vreg_info.vcc)
+	if (hba->vreg_info.vcc && hba->vreg_info.vcc->max_uA)
 		icc_level = ufshcd_get_max_icc_level(
 				hba->vreg_info.vcc->max_uA,
 				POWER_DESC_MAX_ACTV_ICC_LVLS - 1,
 				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCC_0]);
 
-	if (hba->vreg_info.vccq)
+	if (hba->vreg_info.vccq && hba->vreg_info.vccq->max_uA)
 		icc_level = ufshcd_get_max_icc_level(
 				hba->vreg_info.vccq->max_uA,
 				icc_level,
 				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCCQ_0]);
 
-	if (hba->vreg_info.vccq2)
+	if (hba->vreg_info.vccq2 && hba->vreg_info.vccq2->max_uA)
 		icc_level = ufshcd_get_max_icc_level(
 				hba->vreg_info.vccq2->max_uA,
 				icc_level,
@@ -8384,12 +8397,6 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 	struct scsi_device *sdev_boot = NULL;
 	bool is_bootable_dev = false;
 	bool is_embedded_dev = false;
-#ifdef VENDOR_EDIT
-//yh@PSW.BSP.Storage.UFS, 2018-05-31 add for ufs device in /proc/devinfo
-	static char temp_version[5] = {0};
-	static char vendor[9] = {0};
-	static char model[17] = {0};
-#endif
 
 	if ((hba->dev_info.b_device_sub_class == UFS_DEV_EMBEDDED_BOOTABLE) ||
 	    (hba->dev_info.b_device_sub_class == UFS_DEV_REMOVABLE_BOOTABLE))
@@ -8409,21 +8416,6 @@ static int ufshcd_scsi_add_wlus(struct ufs_hba *hba)
 		goto out;
 	}
 	scsi_device_put(hba->sdev_ufs_device);
-
-#ifdef VENDOR_EDIT
-//yh@PSW.BSP.Storage.UFS, 2018-05-31 add for ufs device in /proc/devinfo
-	strncpy(temp_version, hba->sdev_ufs_device->rev, 4);
-	strncpy(vendor, hba->sdev_ufs_device->vendor, 8);
-	strncpy(model, hba->sdev_ufs_device->model, 16);
-	ret = register_device_proc("ufs_version", temp_version, vendor);
-	if (ret) {
-		printk("Fail register_device_proc ufs_version\n");
-	}
-	ret = register_device_proc("ufs", model, vendor);
-	if (ret) {
-		printk("Fail register_device_proc ufs \n");
-	}
-#endif
 
 	if (is_bootable_dev) {
 		sdev_boot = __scsi_add_device(hba->host, 0, 0,
@@ -8466,9 +8458,17 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 			       struct ufs_dev_desc *dev_desc)
 {
 	int err;
+	size_t buff_len;
 	u8 model_index;
-	u8 str_desc_buf[QUERY_DESC_MAX_SIZE + 1] = {0};
-	u8 desc_buf[hba->desc_size.dev_desc];
+	u8 *desc_buf;
+
+	buff_len = max_t(size_t, hba->desc_size.dev_desc,
+			 QUERY_DESC_MAX_SIZE + 1);
+	desc_buf = kmalloc(buff_len, GFP_KERNEL);
+	if (!desc_buf) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	err = ufshcd_read_device_desc(hba, desc_buf, hba->desc_size.dev_desc);
 	if (err) {
@@ -8486,7 +8486,10 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
 
-	err = ufshcd_read_string_desc(hba, model_index, str_desc_buf,
+	/* Zero-pad entire buffer for string termination. */
+	memset(desc_buf, 0, buff_len);
+
+	err = ufshcd_read_string_desc(hba, model_index, desc_buf,
 				QUERY_DESC_MAX_SIZE, ASCII_STD);
 	if (err) {
 		dev_err(hba->dev, "%s: Failed reading Product Name. err = %d\n",
@@ -8494,9 +8497,9 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 		goto out;
 	}
 
-	str_desc_buf[QUERY_DESC_MAX_SIZE] = '\0';
-	strlcpy(dev_desc->model, (str_desc_buf + QUERY_DESC_HDR_SIZE),
-		min_t(u8, str_desc_buf[QUERY_DESC_LENGTH_OFFSET],
+	desc_buf[QUERY_DESC_MAX_SIZE] = '\0';
+	strlcpy(dev_desc->model, (desc_buf + QUERY_DESC_HDR_SIZE),
+		min_t(u8, desc_buf[QUERY_DESC_LENGTH_OFFSET],
 		      MAX_MODEL_LEN));
 
 	/* Null terminate the model string */
@@ -8506,6 +8509,7 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 				  desc_buf[DEVICE_DESC_PARAM_SPEC_VER + 1];
 
 out:
+	kfree(desc_buf);
 	return err;
 }
 
@@ -8736,13 +8740,6 @@ static void ufshcd_init_desc_sizes(struct ufs_hba *hba)
 		&hba->desc_size.geom_desc);
 	if (err)
 		hba->desc_size.geom_desc = QUERY_DESC_GEOMETRY_DEF_SIZE;
-#ifdef VENDOR_EDIT
-	//xiaofan.yang@PSW.TECH.Stability, 2019/03/15,Add for check storage endurance
-	err = ufshcd_read_desc_length(hba, QUERY_DESC_IDN_HEALTH, 0,
-	    &hba->desc_size.hlth_desc);
-	if (err)
-        hba->desc_size.hlth_desc = QUERY_DESC_HEALTH_DEF_SIZE;
-#endif
 }
 
 static void ufshcd_def_desc_sizes(struct ufs_hba *hba)
@@ -8753,10 +8750,6 @@ static void ufshcd_def_desc_sizes(struct ufs_hba *hba)
 	hba->desc_size.conf_desc = QUERY_DESC_CONFIGURATION_DEF_SIZE;
 	hba->desc_size.unit_desc = QUERY_DESC_UNIT_DEF_SIZE;
 	hba->desc_size.geom_desc = QUERY_DESC_GEOMETRY_DEF_SIZE;
-#ifdef VENDOR_EDIT
-	//xiaofan.yang@PSW.TECH.Stability, 2019/03/15,Add for check storage endurance
-	hba->desc_size.hlth_desc = QUERY_DESC_HEALTH_DEF_SIZE;
-#endif
 }
 
 static void ufshcd_apply_pm_quirks(struct ufs_hba *hba)
@@ -9040,7 +9033,8 @@ reinit:
 			hba->dev_info.f_power_on_wp_en = flag;
 
 		/* Add required well known logical units to scsi mid layer */
-		if (ufshcd_scsi_add_wlus(hba))
+		ret = ufshcd_scsi_add_wlus(hba);
+		if (ret)
 			goto out;
 
 		/* lower VCC voltage level */
@@ -9096,6 +9090,11 @@ out:
 	trace_ufshcd_init(dev_name(hba->dev), ret,
 		ktime_to_us(ktime_sub(ktime_get(), start)),
 		hba->curr_dev_pwr_mode, hba->uic_link_state);
+
+	if (!ret) {
+		ufs_fill_info(hba);
+	}
+
 	return ret;
 }
 
@@ -9496,13 +9495,14 @@ static int ufshcd_ioctl(struct scsi_device *dev, int cmd, void __user *buffer)
 	int err = 0;
 
 	BUG_ON(!hba);
-	if (!buffer) {
-		dev_err(hba->dev, "%s: User buffer is NULL!\n", __func__);
-		return -EINVAL;
-	}
 
 	switch (cmd) {
 	case UFS_IOCTL_QUERY:
+		if (!buffer) {
+			dev_err(hba->dev, "%s: User buffer is NULL!\n",
+				 __func__);
+			return -EINVAL;
+		}
 		pm_runtime_get_sync(hba->dev);
 		err = ufshcd_query_ioctl(hba, ufshcd_scsi_to_upiu_lun(dev->lun),
 				buffer);
@@ -9549,6 +9549,15 @@ static int ufshcd_config_vreg_load(struct device *dev, struct ufs_vreg *vreg,
 	int ret;
 
 	if (!vreg)
+		return 0;
+
+	/*
+	 * "set_load" operation shall be required on those regulators
+	 * which specifically configured current limitation. Otherwise
+	 * zero max_uA may cause unexpected behavior when regulator is
+	 * enabled or set as high power mode.
+	 */
+	if (!vreg->max_uA)
 		return 0;
 
 	ret = regulator_set_load(vreg->reg, ua);
@@ -9602,15 +9611,18 @@ static int ufshcd_config_vreg(struct device *dev,
 		if (ret)
 			goto out;
 
-		min_uV = on ? vreg->min_uV : 0;
-		if (vreg->low_voltage_sup && !vreg->low_voltage_active)
-			min_uV = vreg->max_uV;
+		if (vreg->min_uV && vreg->max_uV) {
+			min_uV = on ? vreg->min_uV : 0;
+			if (vreg->low_voltage_sup && !vreg->low_voltage_active)
+				min_uV = vreg->max_uV;
 
-		ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
-		if (ret) {
-			dev_err(dev, "%s: %s set voltage failed, err=%d\n",
+			ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
+			if (ret) {
+				dev_err(dev,
+					"%s: %s set voltage failed, err=%d\n",
 					__func__, name, ret);
-			goto out;
+				goto out;
+			}
 		}
 	}
 out:
@@ -10618,10 +10630,6 @@ out:
 		hba->curr_dev_pwr_mode, hba->uic_link_state);
 	if (!ret)
 		hba->is_sys_suspended = true;
-#ifdef VENDOR_EDIT
-//cuixiaogang@SRC.hypnus. 2018.09.13. add for ufs debug
-	dev_info(hba->dev, "%s:suspend done\n", __func__);
-#endif /* VENDOR_EDIT */
 	return ret;
 }
 EXPORT_SYMBOL(ufshcd_system_suspend);
@@ -10641,24 +10649,24 @@ int ufshcd_system_resume(struct ufs_hba *hba)
 	if (!hba)
 		return -EINVAL;
 
-	if (!hba->is_powered || pm_runtime_suspended(hba->dev))
+	if (!hba->is_powered)
 		/*
 		 * Let the runtime resume take care of resuming
 		 * if runtime suspended.
 		 */
 		goto out;
-	else
-		ret = ufshcd_resume(hba, UFS_SYSTEM_PM);
+
+	ret = ufshcd_resume(hba, UFS_SYSTEM_PM);
+	pm_runtime_disable(hba->dev);
+	pm_runtime_set_active(hba->dev);
+	pm_runtime_enable(hba->dev);
+
 out:
 	trace_ufshcd_system_resume(dev_name(hba->dev), ret,
 		ktime_to_us(ktime_sub(ktime_get(), start)),
 		hba->curr_dev_pwr_mode, hba->uic_link_state);
 	if (!ret)
 		hba->is_sys_suspended = false;
-#ifdef VENDOR_EDIT
-//cuixiaogang@SRC.hypnus. 2018.09.13. add for ufs debug
-	dev_info(hba->dev, "%s:resume done\n", __func__);
-#endif /* VENDOR_EDIT */
 	return ret;
 }
 EXPORT_SYMBOL(ufshcd_system_resume);
@@ -10935,6 +10943,9 @@ int ufshcd_shutdown(struct ufs_hba *hba)
 {
 	int ret = 0;
 
+	if (!hba->is_powered)
+		goto out;
+
 	if (ufshcd_is_ufs_dev_poweroff(hba) && ufshcd_is_link_off(hba))
 		goto out;
 
@@ -11105,102 +11116,6 @@ out_error:
 }
 EXPORT_SYMBOL(ufshcd_alloc_host);
 
-#ifdef VENDOR_EDIT
-//xiaofan.yang@PSW.TECH.Stability, 2019/03/15,Add for check storage endurance
-#include <asm/unaligned.h>
-static ssize_t ufs_sysfs_read_desc_param(struct ufs_hba *hba,
-				  enum desc_idn desc_id,
-				  u8 desc_index,
-				  u8 param_offset,
-				  u8 *sysfs_buf,
-				  u8 param_size)
-{
-	u8 desc_buf[8] = {0};
-	int ret;
-
-	if (param_size > 8)
-		return -EINVAL;
-
-	ret = ufshcd_read_desc_param(hba, desc_id, desc_index,
-				param_offset, desc_buf, param_size);
-	if (ret)
-		return -EINVAL;
-	switch (param_size) {
-	case 1:
-		ret = sprintf(sysfs_buf, "0x%02X\n", *desc_buf);
-		break;
-	case 2:
-		ret = sprintf(sysfs_buf, "0x%04X\n",
-			get_unaligned_be16(desc_buf));
-		break;
-	case 4:
-		ret = sprintf(sysfs_buf, "0x%08X\n",
-			get_unaligned_be32(desc_buf));
-		break;
-	case 8:
-		ret = sprintf(sysfs_buf, "0x%016llX\n",
-			get_unaligned_be64(desc_buf));
-		break;
-	}
-
-	return ret;
-}
-
-#define UFS_DESC_PARAM(_name, _puname, _duname, _size)			\
-	static ssize_t _name##_show(struct device *dev, 			\
-		struct device_attribute *attr, char *buf)			\
-	{									\
-		struct ufs_hba *hba = dev_get_drvdata(dev); 		\
-		return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_##_duname, \
-			0, _duname##_DESC_PARAM##_puname, buf, _size);		\
-	}									\
-	static DEVICE_ATTR_RO(_name)
-
-#define UFS_HEALTH_DESC_PARAM(_name, _uname, _size)			\
-	UFS_DESC_PARAM(_name, _uname, HEALTH, _size)
-
-UFS_HEALTH_DESC_PARAM(len, _LEN, 1);
-UFS_HEALTH_DESC_PARAM(eol_info, _EOL_INFO, 1);
-UFS_HEALTH_DESC_PARAM(life_time_estimation_a, _LIFE_TIME_EST_A, 1);
-UFS_HEALTH_DESC_PARAM(life_time_estimation_b, _LIFE_TIME_EST_B, 1);
-
-static struct attribute *ufs_sysfs_health_descriptor[] = {
-	&dev_attr_len.attr,
-	&dev_attr_eol_info.attr,
-	&dev_attr_life_time_estimation_a.attr,
-	&dev_attr_life_time_estimation_b.attr,
-	NULL,
-};
-
-static const struct attribute_group ufs_sysfs_health_descriptor_group = {
-	.name = "health_descriptor",
-	.attrs = ufs_sysfs_health_descriptor,
-};
-
-#define UFS_POWER_DESC_PARAM(_name, _uname, _index)			\
-static ssize_t _name##_index##_show(struct device *dev,			\
-	struct device_attribute *attr, char *buf)			\
-{									\
-	struct ufs_hba *hba = dev_get_drvdata(dev);			\
-	return ufs_sysfs_read_desc_param(hba, QUERY_DESC_IDN_POWER, 0,	\
-		PWR_DESC##_uname##_0 + _index * 2, buf, 2);		\
-}									\
-static DEVICE_ATTR_RO(_name##_index)
-
-static const struct attribute_group *ufs_sysfs_groups[] = {
-	&ufs_sysfs_health_descriptor_group,
-	NULL,
-};
-
-void ufs_sysfs_add_nodes(struct device *dev)
-{
-	int ret;
-
-	ret = sysfs_create_groups(&dev->kobj, ufs_sysfs_groups);
-	if (ret)
-		dev_err(dev,"%s: sysfs groups creation failed (err = %d)\n", __func__, ret);
-}
-#endif
 /**
  * ufshcd_init - Driver initialization routine
  * @hba: per-adapter instance
@@ -11366,7 +11281,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 			 host->host_no);
 		hba->clk_scaling.workq = create_singlethread_workqueue(wq_name);
 
-		ufshcd_clkscaling_init_sysfs(hba);
+		ufshcd_clkscaling_init_sysfs(hba, false);
+	} else {
+		ufshcd_clkscaling_init_sysfs(hba, true);
 	}
 
 	/*
@@ -11404,10 +11321,7 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	ufsdbg_add_debugfs(hba);
 
 	ufshcd_add_sysfs_nodes(hba);
-#ifdef VENDOR_EDIT
-    //xiaofan.yang@PSW.TECH.Stability, 2019/03/15,Add for check storage endurance
-	ufs_sysfs_add_nodes(hba->dev);
-#endif
+
 	return 0;
 
 out_remove_scsi_host:
