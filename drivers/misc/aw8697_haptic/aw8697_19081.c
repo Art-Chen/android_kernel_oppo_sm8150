@@ -1080,7 +1080,7 @@ static void aw8697_haptic_reset_init(struct aw8697 *aw8697);
 static int aw8697_haptic_stop_delay(struct aw8697 *aw8697)
 {
     unsigned char reg_val = 0;
-    unsigned int cnt = 60;
+    unsigned int cnt = 200;
 
     while(cnt--) {
         aw8697_i2c_read(aw8697, AW8697_REG_GLB_STATE, &reg_val);
