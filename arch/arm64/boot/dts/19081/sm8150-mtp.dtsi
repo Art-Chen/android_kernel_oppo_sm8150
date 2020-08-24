@@ -759,9 +759,6 @@
 		polling-delay = <200>;
 		thermal-governor = "step_wise";
 		thermal-sensors = <&pm8150_adc_tm ADC_AMUX_THM1_PU2>;
-		/* #ifdef VENDOR_EDIT */
-		temp-track;
-		/* #endif */
 		wake-capable-sensor;
 		trips {
 			active-config0 {
