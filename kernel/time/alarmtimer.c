@@ -359,7 +359,6 @@ static int alarmtimer_suspend(struct device *dev)
 		atomic_set(&alarm_atomic, 0);
 		atomic_set(&alarm_sleep_busy_atomic, 1);
 		#endif /* VENDOR_EDIT */
-		return -EBUSY;
 	}
 
 	trace_alarmtimer_suspend(expires, type);
