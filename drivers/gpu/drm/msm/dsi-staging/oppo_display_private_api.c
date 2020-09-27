@@ -788,6 +788,10 @@ int oppo_dsi_hbm_backlight_setting(bool enabled)
 		pr_err("failed for: %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+	if (get_oppo_display_power_status() != OPPO_DISPLAY_POWER_ON) {
+		return -EFAULT;
+	}
+	
 	if (!hbm_mode) {
 		if (enabled) {
 			ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_ON);
@@ -2208,6 +2212,11 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	int onscreenfp_status = 0;
 	int vblank_get = -EINVAL;
 	int err = 0;
+
+    if (!dsi_connector || !dsi_connector->state || !dsi_connector->state->crtc) {
+		pr_err("[%s]: display not ready\n", __func__);
+		return count;
+	}
 
 	sscanf(buf, "%du", &onscreenfp_status);
 	onscreenfp_status = !!onscreenfp_status;
