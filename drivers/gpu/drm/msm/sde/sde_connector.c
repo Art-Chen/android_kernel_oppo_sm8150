@@ -671,14 +671,17 @@ int sde_connector_update_backlight(struct drm_connector *connector)
 	return 0;
 }
 
-int sde_connector_update_hbm_backlight(struct drm_connector *connector)
-{
-    struct sde_connector *c_conn = to_sde_connector(connector);
-	_sde_connector_update_bl_scale(c_conn);
-	return 0;
-}
+
 
 extern u32 flag_writ;
+int sde_connector_update_hbm_backlight(struct drm_connector *connector)
+{
+    flag_writ = 3;
+    struct sde_connector *c_conn = to_sde_connector(connector);
+    _sde_connector_update_bl_scale(c_conn);
+    return 0;
+}
+
 extern int oppo_dimlayer_hbm_vblank_count;
 extern atomic_t oppo_dimlayer_hbm_vblank_ref;
 extern u32 oppo_onscreenfp_pressed_up_status;
