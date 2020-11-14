@@ -4199,6 +4199,10 @@ int dsi_panel_set_lp2(struct dsi_panel *panel)
 		pr_err("[%s] failed to send DSI_CMD_SET_LP2 cmd, rc=%d\n",
 		       panel->name, rc);
 #ifdef VENDOR_EDIT
+/* Gou shengjun@PSW.MM.Display.LCD.Stable,2018-11-21
+ * Fix aod flash problem
+ */
+    panel->need_power_on_backlight = true;
 /* Gou shengjun@PSW.MM.Display.LCD.Stability,2018/11/21,
  * Set and save display status
 */
@@ -4240,7 +4244,48 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	if (rc)
 		pr_err("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
 		       panel->name, rc);
+    
+    rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_PRE_OFF);
+    if (rc) {
+        pr_err("[%s] failed to send DSI_CMD_SET_PRE_OFF cmds, rc=%d\n",
+               panel->name, rc);
+    }
+    
+    rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_POST_OFF);
+    if (rc) {
+        pr_err("[%s] failed to send DSI_CMD_SET_POST_OFF cmds, rc=%d\n",
+               panel->name, rc);
+    }
+    
+    rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_PRE_ON);
+    if (rc) {
+        pr_err("[%s] failed to send DSI_CMD_SET_PRE_ON cmds, rc=%d\n",
+               panel->name, rc);
+    }
+    
+    rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_ON);
+    if (rc) {
+        pr_err("[%s] failed to send DSI_CMD_SET_ON cmds, rc=%d\n",
+               panel->name, rc);
+    }
+    
+    rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_POST_ON);
+    if (rc) {
+        pr_err("[%s] failed to send DSI_CMD_SET_POST_ON cmds, rc=%d\n",
+               panel->name, rc);
+    }
+    
+    rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_POST_ON_BACKLIGHT);
+    if (rc) {
+        pr_err("[%s] failed to send DSI_CMD_POST_ON_BACKLIGHT cmds, rc=%d\n",
+               panel->name, rc);
+    }
+    
 #ifdef VENDOR_EDIT
+/* Art_Chen Added
+ * For prevent backlight not working
+*/
+    panel->need_power_on_backlight = true;
 /* Gou shengjun@PSW.MM.Display.LCD.Stability,2018/11/21
  * Set and save display status
 */
