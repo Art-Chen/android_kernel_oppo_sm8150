@@ -5488,14 +5488,17 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		if (pstates[i].sde_pstate)
 			pstates[i].sde_pstate->is_skip = false;
 	}
-    dimlayer_hbm_is_single_layer = cnt <= 2 ? 1 : 0;
-    
-	if (fppressed_index != -1)
-        pr_err("Art_Chen :Check Fingerprint layer, reason: fp_index is %d, fppressed_index is %d aod_index is %d\n", fp_index, fppressed_index, aod_index);
 
 	if (!is_dsi_panel(cstate->base.crtc))
 		return 0;
 
+    dimlayer_hbm_is_single_layer = cnt == 2 ? 1 : 0;
+    
+    if (fppressed_index != -1) {
+        pr_err("Art_Chen :Check Fingerprint layer, reason: fp_index is %d, fppressed_index is %d aod_index is %d\n", fp_index, fppressed_index, aod_index);
+        dimlayer_hbm_is_single_layer = 0;
+    }
+    
 	if (oppo_dimlayer_bl_enable) {
 		int backlight = oppo_get_panel_brightness();
 
@@ -5526,7 +5529,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		}
 	}
     
-    if (dimlayer_hbm && dimlayer_hbm_is_single_layer) {
+    if (dimlayer_hbm && dimlayer_hbm_is_single_layer && fppressed_index == -1) {
         if (chen_need_active_hbm_next_frame) {
             if (chen_need_active_hbm_next_frame != last_chen_need_active_hbm_next_frame) {
                 fppressed_index = 1;
@@ -5537,10 +5540,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
             cstate->fingerprint_pressed = fp_mode == 1;
         }
         last_chen_need_active_hbm_next_frame = chen_need_active_hbm_next_frame;
-    } else {
-        chen_need_active_hbm_next_frame = 0;
     }
-    
     
 	if (dimlayer_hbm || dimlayer_bl) {
 		if (fp_index >= 0 && fppressed_index >= 0) {
@@ -5600,7 +5600,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 			//SDE_ERROR("Failed to config dim layer\n");
 			return -EINVAL;
 		}
-        if (!chen_need_active_hbm_next_frame && !dimlayer_hbm_is_single_layer) {
+        if (!chen_need_active_hbm_next_frame || !dimlayer_hbm_is_single_layer) {
             if (fppressed_index >= 0)
                 cstate->fingerprint_pressed = true;
             else
