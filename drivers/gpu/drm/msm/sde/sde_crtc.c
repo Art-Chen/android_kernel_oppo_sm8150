@@ -5529,7 +5529,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		}
 	}
     
-    if (dimlayer_hbm && dimlayer_hbm_is_single_layer && fppressed_index == -1) {
+    if (dimlayer_hbm && dimlayer_hbm_is_single_layer && fppressed_index == -1 && cnt > 0) {
         if (chen_need_active_hbm_next_frame) {
             if (chen_need_active_hbm_next_frame != last_chen_need_active_hbm_next_frame) {
                 fppressed_index = 1;
