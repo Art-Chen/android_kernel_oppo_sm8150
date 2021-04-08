@@ -676,7 +676,6 @@ int sde_connector_update_backlight(struct drm_connector *connector)
 extern u32 flag_writ;
 int sde_connector_update_hbm_backlight(struct drm_connector *connector)
 {
-    flag_writ = 3;
     struct sde_connector *c_conn = to_sde_connector(connector);
     _sde_connector_update_bl_scale(c_conn);
     return 0;
@@ -751,7 +750,7 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 			mutex_lock(&dsi_display->panel->panel_lock);
 
 			if (OPPO_DISPLAY_AOD_SCENE != get_oppo_display_scene() &&
-			    dsi_display->panel->bl_config.bl_level && !oppo_display_get_hbm_mode()) {
+			    dsi_display->panel->bl_config.bl_level) {
 				current_vblank = drm_crtc_vblank_count(crtc);
 				ret = wait_event_timeout(*drm_crtc_vblank_waitqueue(crtc),
 						current_vblank != drm_crtc_vblank_count(crtc),
@@ -824,7 +823,6 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_OFF);
 			} else {
 				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_HBM_OFF);
-				pr_err("Art_Chen: HBM is off, ignore", rc);
 				//oppo_onscreenfp_pressed_up_status = 1;
 			}
 			flag_writ = 3;
@@ -846,17 +844,6 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 							target_vblank, drm_crtc_vblank_count(crtc));
 				}
 			}
-		}
-		_sde_connector_update_bl_scale(c_conn);
-	} else if (fingerprint_mode == 0 && !oppo_display_get_hbm_mode() && OPPO_DISPLAY_AOD_HBM_SCENE == get_oppo_display_scene()) {
-        pr_err("%s-%d: fingermode is off but it's hbm,so set the hbm off !\n",__func__,__LINE__);
-        mutex_lock(&dsi_display->panel->panel_lock);
-        rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_HBM_OFF);
-        set_oppo_display_scene(OPPO_DISPLAY_NORMAL_SCENE);
-        mutex_unlock(&dsi_display->panel->panel_lock);
-        if (rc) {
-            pr_err("failed to send DSI_CMD_HBM_OFF cmds for greenscreen issue, rc=%d\n", rc);
-            //return rc;
         }
 	}
 

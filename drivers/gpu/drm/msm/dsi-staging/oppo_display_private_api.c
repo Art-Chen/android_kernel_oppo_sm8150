@@ -126,9 +126,9 @@ int dsi_panel_hbm_on(struct dsi_panel *panel) {
 		goto error;
 	}
 
-	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_AOD_HBM_ON);
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ON);
 	if (rc) {
-		pr_err("[%s] failed to send DSI_CMD_AOD_HBM_ON cmds, rc=%d\n",
+		pr_err("[%s] failed to send DSI_CMD_HBM_ON cmds, rc=%d\n",
 		       panel->name, rc);
 	}
 
@@ -570,8 +570,6 @@ int dsi_display_hbm_off(struct dsi_display *display) {
 			       display->name, rc);
 	}
 
-    sde_connector_update_hbm_backlight(display->drm_conn);
-    
 	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
 	rc = dsi_display_clk_ctrl(display->dsi_clk_handle,
 				DSI_CORE_CLK, DSI_CLK_OFF);
@@ -792,11 +790,6 @@ int oppo_dsi_hbm_backlight_setting(bool enabled)
 		pr_err("failed for: %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	if (get_oppo_display_power_status() != OPPO_DISPLAY_POWER_ON) {
-		return -EFAULT;
-	}
-	
-	if (!hbm_mode) {
 		if (enabled) {
 			ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_ON);
 			if (ret) {
@@ -807,15 +800,7 @@ int oppo_dsi_hbm_backlight_setting(bool enabled)
 			if (ret) {
 				pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_OFF cmds, rc=%d\n",display->panel->name, ret);
 			}
-		}
-	} else {
-		pr_err("[%s] failed to set HBM backlight mode, Screen is in HBM Mode now\n",display->panel->name);
-		ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_ON);
-		if (ret) {
-			pr_err("[%s] failed to send DSI_CMD_AOD_HBM_ON cmds, rc=%d\n",display->panel->name, ret);
-		}
 	}
-
 	return ret;
 }
 
@@ -2242,11 +2227,6 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	int onscreenfp_status = 0;
 	int vblank_get = -EINVAL;
 	int err = 0;
-
-    if (!dsi_connector || !dsi_connector->state || !dsi_connector->state->crtc) {
-		pr_err("[%s]: display not ready\n", __func__);
-		return count;
-	}
 
 	sscanf(buf, "%du", &onscreenfp_status);
 	onscreenfp_status = !!onscreenfp_status;
