@@ -13474,7 +13474,7 @@ static int oppo_chg_hw_init(void)
 {
 	//int boot_mode = 0;//get_boot_mode();
 
-	if (0){//boot_mode != MSM_BOOT_MODE__RF && boot_mode != MSM_BOOT_MODE__WLAN) {
+	if (1){//boot_mode != MSM_BOOT_MODE__RF && boot_mode != MSM_BOOT_MODE__WLAN) {
 		smbchg_usb_suspend_disable();
 	} else {
 		smbchg_usb_suspend_enable();
@@ -13574,9 +13574,9 @@ static void oppo_chg_clear_suspend(void)
 	struct smb_charger *chg = NULL;
 
 	if (!g_oppo_chip)
-	//	return;
-	//if (boot_mode == MSM_BOOT_MODE__RF || boot_mode == MSM_BOOT_MODE__WLAN)
 		return;
+	//if (boot_mode == MSM_BOOT_MODE__RF || boot_mode == MSM_BOOT_MODE__WLAN)
+	//	return;
 
 	chg = &g_oppo_chip->pmic_spmi.smb5_chip->chg;
 
