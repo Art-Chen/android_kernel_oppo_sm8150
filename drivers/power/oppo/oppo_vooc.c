@@ -465,6 +465,7 @@ static void oppo_vooc_fastchg_func(struct work_struct *work)
 				///del_timer(&chip->watchdog);
 				oppo_vooc_del_watchdog_timer(chip);
 			}
+			oppo_vooc_set_awake(chip, false);
 			goto out;
 		}
 	}
