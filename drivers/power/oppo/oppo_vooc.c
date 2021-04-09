@@ -577,38 +577,41 @@ static void oppo_vooc_fastchg_func(struct work_struct *work)
 		}
 	ret_info = 0x2;
 	} else if (data == VOOC_NOTIFY_ALLOW_READING_IIC) {
-		chip->fastchg_ing = true;
-		chip->allow_reading = true;
-		adapter_fw_ver_info = false;
-		adapter_model_factory = false;
-		soc = oppo_gauge_get_batt_soc();
-		if (oppo_get_fg_i2c_err_occured() == false) {
-			volt = oppo_gauge_get_batt_mvolts();
-		}
-		if (oppo_get_fg_i2c_err_occured() == false) {
-			temp = oppo_gauge_get_batt_temperature();
-		}
-		if (oppo_get_fg_i2c_err_occured() == false) {
-			current_now = oppo_gauge_get_batt_current();
-		}
-		if (oppo_get_fg_i2c_err_occured() == false) {
-			remain_cap = oppo_gauge_get_remaining_capacity();
-		}
-		oppo_chg_kick_wdt();
-		if (chip->support_vooc_by_normal_charger_path) {//65w
-			if(!normalchg_disabled && chip->fast_chg_type != FASTCHG_CHARGER_TYPE_UNKOWN
-				&& chip->fast_chg_type != CHARGER_SUBTYPE_FASTCHG_VOOC) {
-				oppo_chg_disable_charge();
-				normalchg_disabled = true;
+		if(chip->fastchg_allow){
+			chip->fastchg_ing = true;
+			chip->allow_reading = true;
+			adapter_fw_ver_info = false;
+			adapter_model_factory = false;
+			soc = oppo_gauge_get_batt_soc();
+			if (oppo_get_fg_i2c_err_occured() == false) {
+				volt = oppo_gauge_get_batt_mvolts();
 			}
-		} else {
-			if(!normalchg_disabled) {
-				oppo_chg_disable_charge();
-				normalchg_disabled = true;
+			if (oppo_get_fg_i2c_err_occured() == false) {
+				temp = oppo_gauge_get_batt_temperature();
 			}
+			if (oppo_get_fg_i2c_err_occured() == false) {
+				current_now = oppo_gauge_get_batt_current();
+			}
+			if (oppo_get_fg_i2c_err_occured() == false) {
+				remain_cap = oppo_gauge_get_remaining_capacity();
+				oppo_gauge_get_batt_fcc();
+			}
+			oppo_chg_kick_wdt();
+			if (chip->support_vooc_by_normal_charger_path) {//65w
+				if(!normalchg_disabled && chip->fast_chg_type != FASTCHG_CHARGER_TYPE_UNKOWN
+					&& chip->fast_chg_type != CHARGER_SUBTYPE_FASTCHG_VOOC) {
+					oppo_chg_disable_charge();
+					normalchg_disabled = true;
+				}
+			} else {
+				if(!normalchg_disabled) {
+					oppo_chg_disable_charge();
+					normalchg_disabled = true;
+				}
+			}
+			//don't read
+			chip->allow_reading = false;
 		}
-		//don't read
-		chip->allow_reading = false;
 		vooc_xlog_printk(CHG_LOG_CRTI, " volt:%d,temp:%d,soc:%d,current_now:%d,rm:%d, i2c_err:%d\n",
 			volt, temp, soc, current_now, remain_cap, oppo_get_fg_i2c_err_occured());
 		//mod_timer(&chip->watchdog, jiffies+msecs_to_jiffies(25000));
