@@ -4019,6 +4019,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 /* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-07-07, add alloc wait monitor support*/
 	unsigned long oppo_alloc_start = jiffies;
 #endif /*VENDOR_EDIT*/
+	bool woke_kswapd = false;
 
 	/*
 	 * We also sanity check to catch abuse of atomic reserves being used by
