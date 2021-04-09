@@ -58,6 +58,7 @@ int __attribute__((weak)) register_devinfo(char *name, struct manufacture_info *
 {
 	return 1;
 }
+static int oplus_vooc_convert_fast_chg_type(int fast_chg_type);
 
 void oppo_vooc_battery_update()
 {
@@ -555,7 +556,7 @@ static void oppo_vooc_fastchg_func(struct work_struct *work)
 		if (data == 0) {
 			chip->fast_chg_type = CHARGER_SUBTYPE_FASTCHG_VOOC;
 		} else {
-			chip->fast_chg_type = data;
+			chip->fast_chg_type = oplus_vooc_convert_fast_chg_type(data);
 		}
 		adapter_model_factory = 0;
 		if (chip->fast_chg_type == 0x0F
@@ -1367,6 +1368,70 @@ int oppo_vooc_get_fast_chg_type(void)
 	} else {
 		return chip->fast_chg_type;
 	}
+}
+
+static int oplus_vooc_convert_fast_chg_type(int fast_chg_type)
+{
+	struct oppo_vooc_chip *chip = g_vooc_chip;
+
+	if (!chip)
+		return FASTCHG_CHARGER_TYPE_UNKOWN;
+
+	switch(fast_chg_type) {
+		case FASTCHG_CHARGER_TYPE_UNKOWN:
+			return fast_chg_type;
+			break;
+
+		case 0x11:		/*50w*/
+		case 0x12:		/*50w*/
+		case 0x21:		/*50w*/
+		case 0x31:		/*50w*/
+		case 0x33:		/*50w*/
+		case 0x61:		/*reserve for svooc*/
+		case 0x62:		/*reserve for svooc*/
+			if (chip->support_vooc_by_normal_charger_path)
+				return fast_chg_type;
+			return CHARGER_SUBTYPE_FASTCHG_VOOC;
+			break;
+
+		case 0x14:		/*65w*/
+		case 0x32:		/*65W*/
+		case 0x35:		/*65w*/
+		case 0x36:		/*65w*/
+		case 0x63:		/*reserve for svooc 2.0*/
+		case 0x64:		/*reserve for svooc 2.0*/
+		case 0x65:		/*reserve for svooc 2.0*/
+		case 0x66:		/*reserve for svooc 2.0*/
+		case 0x69:		/*reserve for svooc 2.0*/
+		case 0x6A:		/*reserve for svooc 2.0*/
+		case 0x6B:		/*reserve for svooc 2.0*/
+		case 0x6C:		/*reserve for svooc 2.0*/
+		case 0x6D:		/*reserve for svooc 2.0*/
+		case 0x6E:		/*reserve for svooc 2.0*/
+			if (chip->support_vooc_by_normal_charger_path)
+				return fast_chg_type;
+			return CHARGER_SUBTYPE_FASTCHG_VOOC;
+			break;
+
+		case 0x0F:		/*special code*/
+		case 0x1F:		/*special code*/
+		case 0x3F:		/*special code*/
+		case 0x7F:		/*special code*/
+			return fast_chg_type;
+			break;
+
+		case 0x34:
+			if (chip->support_vooc_by_normal_charger_path)
+				return fast_chg_type;
+			return CHARGER_SUBTYPE_FASTCHG_VOOC;
+			break;
+
+		default:
+			return CHARGER_SUBTYPE_FASTCHG_VOOC;
+			break;
+	}
+
+	return FASTCHG_CHARGER_TYPE_UNKOWN;
 }
 
 void oppo_vooc_set_disable_adapter_output(bool disable)

@@ -2894,7 +2894,6 @@ static void oppo_chg_voter_charging_stop(struct oppo_chg_chip *chip,
 			chip->total_time = 0;
 			if (oppo_vooc_get_allow_reading() == true) {
 				chip->chg_ops->charger_suspend();
-				break;
 			}
 			oppo_chg_turn_off_charging(chip);
 			break;
