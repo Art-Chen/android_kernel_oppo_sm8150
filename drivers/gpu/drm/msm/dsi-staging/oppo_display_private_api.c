@@ -26,8 +26,6 @@ int seed_mode = 0;
 int aod_light_mode = 0;
 int lcd_closebl_flag = 0;
 int lcd_closebl_flag_fp = 0;
-int dimlayer_hbm_is_single_layer = 0;
-int chen_need_active_hbm_next_frame = 0;
 int oppo_request_power_status = OPPO_DISPLAY_POWER_ON;
 
 extern int oppo_dc2_alpha;
@@ -898,32 +896,6 @@ struct device_attribute *attr, char *buf) {
 	printk(KERN_INFO "oppo_get_aod_light_mode = %d\n",aod_light_mode);
 
 	return sprintf(buf, "%d\n", aod_light_mode);
-}
-
-static ssize_t oppo_display_get_dimlayer_hbm_is_single_layer(struct device *dev,
-                                       struct device_attribute *attr, char *buf) {
-    
-    printk(KERN_INFO "oppo_display_get_dimlayer_hbm_is_single_layer = %d\n",dimlayer_hbm_is_single_layer);
-    
-    return sprintf(buf, "%d\n", dimlayer_hbm_is_single_layer);
-}
-
-
-static ssize_t oppo_display_get_chen_need_active_hbm_next_frame(struct device *dev,
-                                                             struct device_attribute *attr, char *buf) {
-    
-    printk(KERN_INFO "oppo_display_get_chen_need_active_hbm_next_frame = %d\n",chen_need_active_hbm_next_frame);
-    
-    return sprintf(buf, "%d\n", chen_need_active_hbm_next_frame);
-}
-
-static ssize_t oppo_display_set_chen_need_active_hbm_next_frame(struct device *dev,
-                                            struct device_attribute *attr,
-                                            const char *buf, size_t count) {
-    
-    sscanf(buf, "%du", &chen_need_active_hbm_next_frame);
-    
-    return count;
 }
 
 static ssize_t oppo_display_regulator_control(struct device *dev,
@@ -2410,8 +2382,7 @@ static DEVICE_ATTR(notify_fppress, S_IRUGO|S_IWUSR, NULL, oppo_display_notify_fp
 static DEVICE_ATTR(aod_light_mode_set, S_IRUGO|S_IWUSR, oppo_get_aod_light_mode, oppo_set_aod_light_mode);
 static DEVICE_ATTR(hdr10, S_IRUGO|S_IWUSR, oppo_display_get_hdr10_mode, oppo_display_set_hdr10_mode);
 static DEVICE_ATTR(serial_number, S_IRUGO|S_IWUSR, oppo_display_get_serial_number, NULL);
-static DEVICE_ATTR(dimlayer_hbm_is_single_layer, S_IRUGO|S_IWUSR, oppo_display_get_dimlayer_hbm_is_single_layer, NULL);
-static DEVICE_ATTR(chen_need_hbm_next_frame, S_IRUGO|S_IWUSR, oppo_display_get_chen_need_active_hbm_next_frame, oppo_display_set_chen_need_active_hbm_next_frame);
+
 /*
  * Create a group of attributes so that we can create and destroy them all
  * at once.
@@ -2444,8 +2415,6 @@ static struct attribute *oppo_display_attrs[] = {
 	&dev_attr_aod_light_mode_set.attr,
 	&dev_attr_hdr10.attr,
 	&dev_attr_serial_number.attr,
-    &dev_attr_dimlayer_hbm_is_single_layer.attr,
-    &dev_attr_chen_need_hbm_next_frame.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
 
