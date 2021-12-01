@@ -43,10 +43,23 @@
 #define TX_MACRO_ADC_MUX_CFG_OFFSET 0x8
 #define TX_MACRO_ADC_MODE_CFG0_SHIFT 1
 
+#ifndef OPLUS_BUG_STABILITY
+/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.CODEC.1447862, 2018/06/26,
+ *Modify for pop noise when start dmic
+ */
 #define TX_MACRO_DMIC_UNMUTE_DELAY_MS	40
+#else /* OPLUS_BUG_STABILITY */
+#define TX_MACRO_DMIC_UNMUTE_DELAY_MS	50
+#endif /* OPLUS_BUG_STABILITY */
+
 #define TX_MACRO_AMIC_UNMUTE_DELAY_MS	100
 #define TX_MACRO_DMIC_HPF_DELAY_MS	300
+#ifndef OPLUS_BUG_STABILITY
+/*Nan.Zhong@MULTIMEDIA.AUDIODRIVER.CODEC, 2020/10/27, Modify for hpf delay fix pop noise*/
 #define TX_MACRO_AMIC_HPF_DELAY_MS	300
+#else /* OPLUS_BUG_STABILITY */
+#define TX_MACRO_AMIC_HPF_DELAY_MS	500
+#endif /* OPLUS_BUG_STABILITY */
 
 static int tx_unmute_delay = TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int, 0664);
@@ -495,6 +508,10 @@ static void tx_macro_tx_hpf_corner_freq_callback(struct work_struct *work)
 				hpf_cut_off_freq << 5);
 		snd_soc_update_bits(codec, hpf_gate_reg,
 						0x03, 0x02);
+		#ifdef OPLUS_BUG_STABILITY
+		/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.CODEC.58490, 2020/06/18, Add for resolve glitch during amic record*/
+		usleep_range(30, 35);
+		#endif /* OPLUS_BUG_STABILITY */
 		/* Add delay between toggle hpf gate based on sample rate */
 		switch(tx_priv->amic_sample_rate) {
 		case 8000:
@@ -909,7 +926,12 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, tx_vol_ctl_reg, 0x20, 0x20);
+		#ifndef OPLUS_BUG_STABILITY
+		/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.CODEC.58490, 2020/06/18, Modify for resolve glitch during amic record*/
+		if (!(is_amic_enabled(codec, decimator) < BOLERO_ADC_MAX)) {
+		#else /* OPLUS_BUG_STABILITY */
 		if (!is_amic_enabled(codec, decimator)) {
+		#endif /* OPLUS_BUG_STABILITY */
 			snd_soc_update_bits(codec,
 				hpf_gate_reg, 0x01, 0x00);
 			/*
@@ -947,6 +969,10 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			if (!is_amic_enabled(codec, decimator))
 				snd_soc_update_bits(codec,
 					hpf_gate_reg, 0x03, 0x00);
+			#ifdef OPLUS_BUG_STABILITY
+			/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.CODEC.58490, 2020/06/18, Add for resolve glitch during amic record*/
+			usleep_range(30, 35);
+			#endif /* OPLUS_BUG_STABILITY */
 			snd_soc_update_bits(codec,
 					hpf_gate_reg, 0x03, 0x01);
 			/*
@@ -977,7 +1003,13 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				snd_soc_update_bits(codec, dec_cfg_reg,
 						    TX_HPF_CUT_OFF_FREQ_MASK,
 						    hpf_cut_off_freq << 5);
+				#ifndef OPLUS_BUG_STABILITY
+				/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.CODEC.58490, 2020/06/18, Modify for resolve glitch during amic record*/
+				if (is_amic_enabled(codec, decimator) <
+				    BOLERO_ADC_MAX)
+				#else /* OPLUS_BUG_STABILITY */
 				if (is_amic_enabled(codec, decimator))
+				#endif /* OPLUS_BUG_STABILITY */
 					snd_soc_update_bits(codec,
 							hpf_gate_reg,
 							0x03, 0x02);
@@ -989,7 +1021,12 @@ static int tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 				 * Minimum 1 clk cycle delay is required
 				 * as per HW spec
 				 */
+				#ifndef OPLUS_BUG_STABILITY
+				/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.CODEC.58490, 2020/06/18, Modify for resolve glitch during amic record*/
 				usleep_range(1000, 1010);
+				#else /* OPLUS_BUG_STABILITY */
+				usleep_range(30, 35);
+				#endif /* OPLUS_BUG_STABILITY */
 				snd_soc_update_bits(codec, hpf_gate_reg,
 						0x03, 0x01);
 			}
