@@ -1981,8 +1981,23 @@ static int max98927_stream_mute(struct snd_soc_dai *codec_dai, int mute, int str
 				}
 			}
 			mutex_lock(&dsm_lock);
+			#ifndef VENDOR_EDIT
+			/*guowang.Huang@PSW.MM.AudioDriver.SmartPA, 2020/06/04,
+			* calibration error, use default data*/
 			*payload = max98927->ref_RDC[MAX98927L];
 			*(payload+1) = max98927->ref_RDC[MAX98927R];
+			#else
+			if (max98927->ref_RDC[MAX98927L] == SPK_MUTE_VALUE){
+				*payload = 0;
+			}else {
+				*payload = max98927->ref_RDC[MAX98927L];
+			}
+			if (max98927->ref_RDC[MAX98927R] == SPK_MUTE_VALUE){
+				*(payload+1) = 0;
+			}else{
+				*(payload+1) = max98927->ref_RDC[MAX98927R];
+			}
+			#endif /* VENDOR_EDIT */
 			*(payload+2) = max98927->adsp_mode;
 			afe_dsm_set_calib((uint8_t *)payload);
 			//load calibration to DSM
