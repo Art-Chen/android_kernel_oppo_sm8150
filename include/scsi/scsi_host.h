@@ -666,6 +666,7 @@ struct Scsi_Host {
 	/* The controller does not support WRITE SAME */
 	unsigned no_write_same:1;
 
+        unsigned inlinecrypt_support:1;
 	unsigned use_blk_mq:1;
 	unsigned use_cmd_list:1;
 
