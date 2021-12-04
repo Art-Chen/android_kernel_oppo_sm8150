@@ -1296,4 +1296,8 @@ config TOUCHSCREEN_RAYDIUM_CHIPSET
 
 	  If unsure, say N.
 
+#Qicai.gu@Bsp.Group.Tp, 2020/02/26, Add for oppo project
+source "drivers/input/touchscreen/oppo_touchscreen/Kconfig"
+
+
 endif
