@@ -19,3 +19,10 @@ obj-$(CONFIG_NFC_S3FWRN5)	+= s3fwrn5/
 obj-$(CONFIG_NFC_ST95HF)	+= st95hf/
 obj-$(CONFIG_NFC_NQ)		+= nq-nci.o
 obj-$(CONFIG_NTAG_NQ)		+= nq-ntag.o
+obj-$(CONFIG_OPPO_NFC)          += oppo_nfc/
+#ifdef OPLUS_NFC_BRINGUP
+#DengWeiwei@CONNECTIVITY.NFC.HARDWARE.228691, 2020/08/03
+#Add for the kernel Macro for NXP PN557 NFC kernel
+obj-$(CONFIG_NFC_PN553_DEVICES)		+= pn553-i2c/
+#endif /*OPLUS_NFC_BRINGUP*/
+obj-$(CONFIG_NXP_P73_DEVICES)      += p73-spi/
