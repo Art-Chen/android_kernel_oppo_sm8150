@@ -607,7 +607,34 @@ source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
+source "drivers/misc/aw8697_haptic/Kconfig"
 source "drivers/misc/fpr_FingerprintCard/Kconfig"
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+source "drivers/misc/oppo_motor/Kconfig"
+#endif
+
+#ifdef OPLUS_FEATURE_TP_BASIC
+#Fuchun.Liao@BSP.CHG.Basic 2018/11/26 modify for rf cable monitor
+#Qicai.Gu@BSP.TP, 2020/07/30, modify for rf cable monitor
+config OPLUS_RF_CABLE_MONITOR
+	bool "OPLUS rf cable monitor system"
+	depends on OF
+	select PINMUX
+	default n
+	help
+	  Say Y here to enable OPLUS rf cable monitor system support
+#endif /* OPLUS_FEATURE_TP_BASIC */
+
+#ifdef OPLUS_FEATURE_TP_BASIC
+#Qicai.Gu@BSP.TP, 2020/08/25, modify for sim detect
+config SIM_DETECT
+	tristate "SIM_DETECT system"
+	default n
+	help
+	  Say Y here to enable sim detect system support
+#endif /* OPLUS_FEATURE_TP_BASIC */
+
 endmenu
 
 config OKL4_USER_VIPC

@@ -41,6 +41,7 @@ obj-$(CONFIG_VMWARE_BALLOON)	+= vmw_balloon.o
 obj-$(CONFIG_PCH_PHUB)		+= pch_phub.o
 obj-y				+= ti-st/
 obj-y				+= lis3lv02d/
+obj-$(CONFIG_AW8697_HAPTIC)		+=aw8697_haptic/
 obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
 obj-$(CONFIG_INTEL_MEI)		+= mei/
@@ -69,6 +70,21 @@ obj-$(CONFIG_QPNP_MISC) 	+= qpnp-misc.o
 obj-$(CONFIG_OKL4_USER_VIRQ)	+= okl4-virq.o
 obj-$(CONFIG_OKL4_RINGBUF)	+= okl4-ringbuf.o
 obj-$(CONFIG_TEST_IRQ_REQUESTER) += irq_requester.o
+
+#ifdef OPLUS_FEATURE_TP_BASIC
+#Qicai.Gu@BSP.TP, 2020/08/10, modify for rf cable monitor
+obj-$(CONFIG_OPLUS_RF_CABLE_MONITOR)	+= oplus_rf_cable_monitor.o
+#endif
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+obj-y               += motor.o
+obj-y               += oppo_motor/
+#endif
+
+#ifdef OPLUS_FEATURE_TP_BASIC
+#Qicai.Gu@BSP.TP, 2020/08/10, modify for sim detect
+obj-$(CONFIG_SIM_DETECT)	+= sim_detect.o
+#endif
 
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_core.o
 lkdtm-$(CONFIG_LKDTM)		+= lkdtm_bugs.o
