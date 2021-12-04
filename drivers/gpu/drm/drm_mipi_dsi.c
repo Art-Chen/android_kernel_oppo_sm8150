@@ -1044,6 +1044,10 @@ int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 
+#ifdef OPLUS_FEATURE_90FPS_GLOBAL_HBM
+extern u32 flag_writ;
+extern int oppo_dsi_hbm_backlight_setting(bool enabled);
+#endif /*OPLUS_FEATURE_90FPS_GLOBAL_HBM*/
 /**
  * mipi_dsi_dcs_set_display_brightness() - sets the brightness value of the
  *    display
@@ -1055,14 +1059,47 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 					u16 brightness)
 {
-	u8 payload[2] = { brightness & 0xff, brightness >> 8 };
+	u8 payload[2] = { brightness >> 8, brightness & 0xff };
 	ssize_t err;
+#ifdef OPLUS_FEATURE_90FPS_GLOBAL_HBM
+	u8  value;
+	u16 hbm_brightness;
 
+	if(brightness > 1023){
+		value = 0xE0;
+		hbm_brightness =  brightness;
+		if(flag_writ == 0 || flag_writ == 3){
+			oppo_dsi_hbm_backlight_setting(true);
+			mipi_dsi_dcs_write(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+					   &value, sizeof(value));
+			flag_writ = 2;
+			pr_err("dsi_cmd hbm_brightness:%d\n", hbm_brightness);
+		}
+		err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
+					 payload, sizeof(payload));
+		if (err < 0)
+			return err;
+	} else {
+		value = 0x20;
+		err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
+					 payload, sizeof(payload));
+		if(flag_writ == 2 || flag_writ == 3){
+			mipi_dsi_dcs_write(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+					   &value, sizeof(value));
+			if(brightness > 1)
+				oppo_dsi_hbm_backlight_setting(false);
+			flag_writ = 0;
+			pr_err("dsi_cmd hbm_brightness_off brightness %d\n", brightness);
+		}
+		if (err < 0)
+			return err;
+	}
+#else
 	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
 				 payload, sizeof(payload));
 	if (err < 0)
 		return err;
-
+#endif /*OPLUS_FEATURE_90FPS_GLOBAL_HBM*/
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_display_brightness);
