@@ -447,6 +447,45 @@ KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 GCC_PLUGINS_CFLAGS :=
 CLANG_FLAGS :=
 
+
+#ifdef OPLUS_FEATURE_BUILD
+#Sunliang@TECH.SysTech.Build.BaseConfig, 2020/03/18, oplus customzation for flags or other variabls
+-include OplusKernelEnvConfig.mk
+#endif // OPLUS_FEATURE_BUILD
+
+#ifdef OPLUS_BUG_STABILITY
+ifeq ($(TARGET_BUILD_VARIANT), user)
+KBUILD_CFLAGS += -DCONFIG_OPPO_USER_BUILD
+else
+KBUILD_CFLAGS += -DCONFIG_OPPO_DEBUG_BUILD
+endif
+#endif OPLUS_BUG_STABILITY
+
+#ifdef OPLUS_FEATURE_MEMLEAK_DETECT
+#Kui.Zhang@Bsp.Kernel.MM, 2020/05/19, Add for memleak test
+ifeq ($(AGING_DEBUG_MASK),1)
+# enable memleak detect daemon
+OPPO_MEMLEAK_DETECT := true
+endif
+
+ifeq ($(TARGET_MEMLEAK_DETECT_TEST),0)
+# disable memleak detect daemon
+OPPO_MEMLEAK_DETECT := false
+else ifeq ($(TARGET_MEMLEAK_DETECT_TEST),1)
+# enable memleak detect daemon
+OPPO_MEMLEAK_DETECT := true
+endif
+
+export OPPO_MEMLEAK_DETECT
+#endif
+
+# ifdef OPLUS_FEATURE_CHG_BASIC
+# Gang.Yan@PSW.BSP.CHG.Basic, 2020/03/12, sjc Add for 806 high/low temp aging test
+ifeq ($(OPPO_HIGH_TEMP_VERSION),true)
+KBUILD_CFLAGS += -DCONFIG_HIGH_TEMP_VERSION
+KBUILD_CPPFLAGS += -DCONFIG_HIGH_TEMP_VERSION
+endif
+#endif OPLUS_FEATURE_CHG_BASIC
 export ARCH SRCARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC
 export CPP AR NM STRIP OBJCOPY OBJDUMP HOSTLDFLAGS HOST_LOADLIBES
 export MAKE AWK GENKSYMS INSTALLKERNEL PERL PYTHON UTS_MACHINE
