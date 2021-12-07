@@ -313,6 +313,8 @@ source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
 source "fs/unicode/Kconfig"
 
+source "fs/exfat/Kconfig"
+
 config FILE_TABLE_DEBUG
 	bool "Enable FILE_TABLE_DEBUG"
 	help
