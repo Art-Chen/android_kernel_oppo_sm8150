@@ -41,7 +41,9 @@
 #define OPERATOR_NAME            (0xE)
 #define PROJECT_TEST            (0x1F)
 
-static ProjectInfoOldCDT *g_project = NULL;
+static ProjectInfoOldCDT *g_project_old_cdt = NULL;
+
+static ProjectInfoOCDT *g_project = NULL;
 
 static struct pcb_match pcb_str[] = {
     {.version=PRE_EVB1, .str="PRE_EVB1"},
@@ -97,7 +99,7 @@ static void init_project_version(void)
     char *PCB_version_name = NULL;
     uint16_t index = 0;
 
-    if (g_project) {
+    if (g_project || g_project_old_cdt) {
         return;
 	}
     /*get project info from smem*/
@@ -110,24 +112,93 @@ static void init_project_version(void)
             return;
         }
 
-        g_project = (ProjectInfoOldCDT *)smem_addr;
+        g_project = (ProjectInfoOCDT *)smem_addr;
         if (g_project == ERR_PTR(-EPROBE_DEFER)) {
             g_project = NULL;
-            return;
+			pr_err("Art_Chen Hack: ColorOS 11 New CDT init failed, trying ColorOS 7 Old CDT");
+			g_project_old_cdt = (ProjectInfoOldCDT *)smem_addr;
+
+			if (g_project_old_cdt == ERR_PTR(-EPROBE_DEFER)) {
+				g_project_old_cdt == NULL;
+				return;
+			}
+        } else if (g_project->nDataBCDT.ProjectNo != 19081) {
+			pr_err("Art_Chen Hack: ColorOS 11 New CDT init maybe failed, project is not 19081, trying ColorOS 7 Old CDT");
+			g_project_old_cdt = (ProjectInfoOldCDT *)smem_addr;
+
+			if (g_project_old_cdt->nproject != 19081) {
+				pr_err("Art_Chen Hack: ColorOS 7 Old CDT init failed, project is not 19081, still using ColorOS 11 CDT!");
+				g_project_old_cdt = NULL;
+			} else {
+				g_project = NULL;
+				pr_err("Art_Chen Hack: ColorOS 7 Old CDT init succeed, project is %d", g_project_old_cdt->nproject);
+			}
+		}
+        if (g_project) {
+            do {
+                if(pcb_str[index].version == g_project->nDataSCDT.PCB){
+                    PCB_version_name = pcb_str[index].str;
+                    break;
+                }
+                index++;
+            } while (index < sizeof(pcb_str)/sizeof(struct pcb_match));
+
+            pr_err("KE Project:%d, Audio:%d, nRF:%d, PCB:%s\n",
+                g_project->nDataBCDT.ProjectNo,
+                g_project->nDataBCDT.AudioIdx,
+                g_project->nDataSCDT.RF,PCB_version_name);
+            pr_err("OCP: %d 0x%x %c %d 0x%x %c\n",
+                g_project->nDataSCDT.PmicOcp[0],
+                g_project->nDataSCDT.PmicOcp[1],
+                g_project->nDataSCDT.PmicOcp[2],
+                g_project->nDataSCDT.PmicOcp[3],
+                g_project->nDataSCDT.PmicOcp[4],
+                g_project->nDataSCDT.PmicOcp[5]);
+
+		    pr_err("get_project:%d, is_new_cdt:%d, get_PCB_Version:%d, get_Oppo_Boot_Mode:%d, get_Modem_Version:%d\n", 
+		            get_project(),
+		            is_new_cdt(),
+		            get_PCB_Version(),
+		            get_Oppo_Boot_Mode(),
+		            get_Modem_Version());
+		    pr_err("get_Operator_Version:%d, get_dtsiNo:%d, get_audio_project:%d\n",
+		            get_Operator_Version(),
+		            get_dtsiNo(),
+		            get_audio());
+
+        } else if (g_project_old_cdt) {
+            pr_err("engVersion=%d\n", g_project_old_cdt->nEngVersion);
+            pr_err("ProjectInfoOldCDT=%d, smem_size=%d\n", sizeof(ProjectInfoOldCDT),smem_size);
         }
+    }
+        
+
+        
+
+    if(is_new_cdt() && g_project){
+		if(oppo_info){
+			remove_proc_entry("oppoVersion/operatorName", NULL);
+			pr_err("remove proc operatorName\n");
+			remove_proc_entry("oppoVersion/modemType", NULL);
+			pr_err("remove proc modemType\n");
+		}
+        if(oppo_info_temp){
+			remove_proc_entry("oplusVersion/operatorName", NULL);
+			pr_err("remove proc operatorName\n");
+			remove_proc_entry("oplusVersion/modemType", NULL);
+			pr_err("remove proc modemType\n");
+		}
+	} else {
+		if(oppo_info){
+			remove_proc_entry("oppoVersion/RFType", NULL);
+			pr_err("remove proc RFType\n");
+		}
+        if(oppo_info_temp){
+			remove_proc_entry("oplusVersion/RFType", NULL);
+			pr_err("remove proc RFType\n");
+		}
 	}
 
-	if(oppo_info){
-		remove_proc_entry("oppoVersion/RFType", NULL);
-		pr_err("remove proc RFType\n");
-	}
-    if(oppo_info_temp){
-		remove_proc_entry("oplusVersion/RFType", NULL);
-		pr_err("remove proc RFType\n");
-	}
-	
-	pr_err("engVersion=%d\n", g_project->nEngVersion);
-	pr_err("ProjectInfoOldCDT=%d, smem_size=%d\n", sizeof(ProjectInfoOldCDT),smem_size);
     pr_err("oppo project info loading finished\n");
 
 }
@@ -146,7 +217,7 @@ unsigned int get_project(void)
 {
     init_project_version();
 
-    return g_project? g_project->nproject : 0;
+    return g_project? g_project->nDataBCDT.ProjectNo : g_project_old_cdt ? g_project_old_cdt->nproject : 0;
 }
 EXPORT_SYMBOL(get_project);
 
@@ -171,7 +242,7 @@ unsigned int get_PCB_Version(void)
 {
     init_project_version();
 
-    return g_project? g_project->npcbversion:-EINVAL;
+    return g_project? g_project->nDataSCDT.PCB : g_project_old_cdt ? g_project_old_cdt->npcbversion : -EINVAL;
 }
 EXPORT_SYMBOL(get_PCB_Version);
 
@@ -179,7 +250,7 @@ unsigned int get_Oppo_Boot_Mode(void)
 {
     init_project_version();
 
-    return g_project?g_project->noppobootmode:0;
+    return g_project?g_project->nDataSCDT.OppoBootMode : g_project_old_cdt ? g_project_old_cdt->noppobootmode : 0;
 }
 EXPORT_SYMBOL(get_Oppo_Boot_Mode);
 
@@ -188,7 +259,7 @@ int32_t get_Modem_Version(void)
     init_project_version();
 
     /*cdt return modem,ocdt return RF*/
-    return g_project?g_project->nmodem:-EINVAL;
+    return g_project?g_project->nDataSCDT.RF: g_project_old_cdt ? g_project_old_cdt->nmodem:-EINVAL;
 }
 EXPORT_SYMBOL(get_Modem_Version);
 
@@ -196,19 +267,22 @@ int32_t get_Operator_Version(void)
 {
     init_project_version();
 
-    return g_project?g_project->noperator:-EINVAL;
+    if(!is_new_cdt() && g_project)
+        return g_project?g_project->nDataSCDT.Operator:-EINVAL;
+    else
+        return g_project_old_cdt?g_project_old_cdt->noperator:-EINVAL;
 }
 EXPORT_SYMBOL(get_Operator_Version);
 
 unsigned int get_dtsiNo(void)
 {
-    return 0;
+    return (g_project && is_new_cdt()) ? g_project->nDataBCDT.DtsiNo : 0;
 }
 EXPORT_SYMBOL(get_dtsiNo);
 
 unsigned int get_audio(void)
 {
-    return 0;
+    return (g_project && is_new_cdt()) ? g_project->nDataBCDT.AudioIdx : 0;
 }
 EXPORT_SYMBOL(get_audio);
 
@@ -241,7 +315,7 @@ unsigned int get_eng_version(void)
 {
     init_project_version();
 
-    return g_project?g_project->nEngVersion:-EINVAL;
+    return g_project?g_project->nDataECDT.Version : g_project_old_cdt ? g_project_old_cdt->nEngVersion:-EINVAL;
 }
 EXPORT_SYMBOL(get_eng_version);
 
@@ -277,12 +351,19 @@ bool is_confidential(void)
 {
     init_project_version();
 
-    return -EINVAL;
+    return g_project?g_project->nDataECDT.Is_confidential:-EINVAL;
 }
 EXPORT_SYMBOL(is_confidential);
 
 uint32_t get_oppo_feature(enum F_INDEX index)
 {
+    if(is_new_cdt() && g_project){
+        init_project_version();
+        if (index < 1 || index > FEATURE_COUNT)
+            return 0;
+        return g_project?g_project->nDataBCDT.Feature[index-1]:0;
+    }
+    else
 	return 0;
 }
 EXPORT_SYMBOL(get_oppo_feature);
@@ -309,11 +390,22 @@ static void dump_ocp_info(struct seq_file *s)
 	int i = 0;
     init_project_version();
 
-    if (!g_project) return;
-	for (i = 0;i < 4;i++) {
-		printk(" %d", g_project->npmicocp[i]);
+    if (!g_project && !g_project_old_cdt) return;
+	
+	if (g_project) {
+	    seq_printf(s, "ocp: %d 0x%x %d 0x%x %c %c",
+	        g_project->nDataSCDT.PmicOcp[0],
+	        g_project->nDataSCDT.PmicOcp[1],
+	        g_project->nDataSCDT.PmicOcp[2],
+	        g_project->nDataSCDT.PmicOcp[3],
+	        g_project->nDataSCDT.PmicOcp[4],
+	        g_project->nDataSCDT.PmicOcp[5]);
+	} else {
+		for (i = 0;i < 4;i++) {
+			printk(" %d", g_project_old_cdt->npmicocp[i]);
+		}
+		printk("\n");
 	}
-	printk("\n");
 }
 
 static void dump_serial_info(struct seq_file *s)
@@ -330,14 +422,26 @@ static void dump_oppo_feature(struct seq_file *s)
 {
     init_project_version();
 
-    if (!g_project)
-        return;
-
-    seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-        g_project->npmicocp[0],
-        g_project->npmicocp[1],
-        g_project->npmicocp[2],
-        g_project->npmicocp[3]);
+    if (!g_project && !g_project_old_cdt) return;
+	if (g_project) {
+	    seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	        g_project->nDataBCDT.Feature[0],
+	        g_project->nDataBCDT.Feature[1],
+	        g_project->nDataBCDT.Feature[2],
+	        g_project->nDataBCDT.Feature[3],
+	        g_project->nDataBCDT.Feature[4],
+	        g_project->nDataBCDT.Feature[5],
+	        g_project->nDataBCDT.Feature[6],
+	        g_project->nDataBCDT.Feature[7],
+	        g_project->nDataBCDT.Feature[8],
+	        g_project->nDataBCDT.Feature[9]);
+	} else {
+	    seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	        g_project_old_cdt->npmicocp[0],
+	        g_project_old_cdt->npmicocp[1],
+	        g_project_old_cdt->npmicocp[2],
+	        g_project_old_cdt->npmicocp[3]);
+	}
     return;
 }
 
@@ -512,7 +616,7 @@ unsigned int get_cdt_version()
 {
     init_project_version();
 
-    return 0;
+    return g_project?g_project->Version:0;
 }
 
 static int projects_open(struct inode *inode, struct file *file)
