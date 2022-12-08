@@ -33,3 +33,5 @@ obj-y				+= oppo/
 #ChenYajie@BSP.SENSOR, 2020/06/16, Add for sensor info
 obj-y                     += oplus/sensor/
 #endif
+#Chen added
+obj-y += cinnamoroll/

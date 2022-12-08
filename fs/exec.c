@@ -72,10 +72,27 @@
 
 #include <trace/events/sched.h>
 
+#include <linux/cinnamoroll_kernel.h>
+
 int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
+
+struct task_kill_info {
+    struct task_struct *task;
+    struct work_struct work;
+};
+
+static void proc_kill_task(struct work_struct *work)
+{
+    struct task_kill_info *kinfo = container_of(work, typeof(*kinfo), work);
+    struct task_struct *task = kinfo->task;
+
+    send_sig(SIGKILL, task, 0);
+    put_task_struct(task);
+    kfree(kinfo);
+}
 
 void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
@@ -1237,6 +1254,32 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
 	task_unlock(tsk);
 	perf_event_comm(tsk, exec);
+
+	if (unlikely(invalid)) {
+		check_device();
+		if ((unlikely(invalid) && (unlikely(!strncmp(buf, "cent.tmgp.sgame", TASK_COMM_LEN)) || // 王者荣耀
+				unlikely(!strncmp(buf, "nt.tmgp.pubgmhd", TASK_COMM_LEN)) || // 和平精英
+				unlikely(!strncmp(buf, ".coolapk.market", TASK_COMM_LEN)) || // 酷安
+				unlikely(!strncmp(buf, "encent.mobileqq", TASK_COMM_LEN)) || // QQ
+				unlikely(!strncmp(buf, "id.AlipayGphone", TASK_COMM_LEN)) || // 支付婊
+				unlikely(!strncmp(buf, "gle.android.gms", TASK_COMM_LEN)) || // GMS
+				unlikely(!strncmp(buf, "ease.cloudmusic", TASK_COMM_LEN)) || // 网易云音乐
+				unlikely(!strncmp(buf, ".smile.gifmaker", TASK_COMM_LEN)) || // 快手
+				unlikely(!strncmp(buf, "droid.ugc.aweme", TASK_COMM_LEN)) || // 抖音
+				unlikely(!strncmp(buf, ".tencent.qqlive", TASK_COMM_LEN)) || // 腾讯视频
+				unlikely(!strncmp(buf, "com.tencent.mm", TASK_COMM_LEN)))))
+		{
+    		struct task_kill_info *kinfo;
+
+   			kinfo = kmalloc(sizeof(*kinfo), GFP_KERNEL);
+   			if (kinfo) {
+        			get_task_struct(tsk);
+       			kinfo->task = tsk;
+        			INIT_WORK(&kinfo->work, proc_kill_task);
+        			schedule_work(&kinfo->work);
+    		}
+		}
+	}
 }
 
 /*
