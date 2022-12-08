@@ -5365,6 +5365,9 @@ extern u32 oppo_backlight_delta;
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
 extern bool is_oppo_aod_ramless(void);
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
+int last_fp_index;
+int last_fppressed_index;
+int last_aod_index;
 static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		struct plane_state *pstates, int cnt)
 {
@@ -5391,6 +5394,17 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 	}
 	if (!is_dsi_panel(cstate->base.crtc))
 		return 0;
+
+	if (fp_index != last_fp_index 
+		|| fppressed_index != last_fppressed_index 
+		|| aod_index != last_aod_index) {
+		pr_debug("Art_Chen: fod_layer_detect_change : fp_index %d, fppressed_index %d, aod_index %d", fp_index, fppressed_index, aod_index);
+	}
+
+	last_fp_index = fp_index;
+	last_fppressed_index = fppressed_index;
+	last_aod_index = aod_index;
+
 	if (oppo_dimlayer_bl_enable) {
 		int backlight = oppo_get_panel_brightness();
 		if (backlight > 1 && backlight < oppo_dimlayer_bl_alpha_value &&
@@ -5411,12 +5425,19 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 	} else {
 		oppo_dimlayer_bl = 0;
 	}
+
 	if (fppressed_index >= 0) {
 		if (fp_mode == 0) {
 			pstates[fppressed_index].sde_pstate->is_skip = true;
 			fppressed_index = -1;
 		}
 	}
+
+	if (fp_index >= 0 && cnt > 2) {
+		// fp_index is hbm_overlay in miui, hide it when SDE Composition working well.
+		pstates[fp_index].sde_pstate->property_values[PLANE_PROP_ALPHA].value = 0;
+	}
+
 	SDE_EVT32(cstate->fingerprint_dim_layer);
 	cstate->fingerprint_mode = false;
 	cstate->fingerprint_pressed = false;
@@ -5993,7 +6014,7 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 				CRTC_PROP_CAPTURE_OUTPUT);
 
 #ifdef OPLUS_BUG_STABILITY
-	msm_property_install_range(&sde_crtc->property_info,"CRTC_CUST",
+	msm_property_install_range(&sde_crtc->property_info,"mi_fod_sync_info",
 		0x0, 0, INT_MAX, 0, CRTC_PROP_CUSTOM);
 #endif
 	msm_property_install_blob(&sde_crtc->property_info, "capabilities",
