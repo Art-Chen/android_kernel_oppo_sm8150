@@ -407,6 +407,108 @@ int oplus_ac_get_property(struct power_supply *psy,
 	return ret;
 }
 
+int chen_get_quick_charge_type(void) {
+	pr_debug("Art_Chen entered chen_get_quick_charge_type, fast_chg_type %d", oplus_vooc_get_fast_chg_type());
+	switch (oplus_vooc_get_fast_chg_type()) {
+		case CHARGER_SUBTYPE_FASTCHG_VOOC:
+		case VOOC_ADAPTER_1:
+		case VOOC_ADAPTER_2:
+			return 3; // SuperRapidCharge
+		case CHARGER_SUBTYPE_FASTCHG_SVOOC:
+		case SVOOC_ADAPTER_1:
+			return 4; // StrongSuperRapidCharge
+		case CHARGER_SUBTYPE_PD:
+		case CHARGER_SUBTYPE_QC:
+			return 1; // Fast Charge
+	}
+	return oplus_chg_show_vooc_logo_ornot();
+}
+
+int chen_get_soc_decimal(void) {
+	int schedule_work = 0;
+	int val;
+	bool svooc_is_control_by_vooc;
+	struct oplus_chg_chip *chip = g_charger_chip;
+	if (!chip) {
+		return 0;
+	}
+
+	chip->boot_completed = true;
+
+	if (is_vooc_support_single_batt_svooc() == true) {
+		switch (oplus_vooc_get_fast_chg_type()) {
+		case CHARGER_SUBTYPE_FASTCHG_VOOC:
+		case VOOC_ADAPTER_1:
+		case VOOC_ADAPTER_2:
+			svooc_is_control_by_vooc = true;
+			break;
+		case SVOOC_ADAPTER_1:
+			svooc_is_control_by_vooc = false;
+			break;
+		default:
+			svooc_is_control_by_vooc = true;
+			break;
+		}
+	} else {
+		svooc_is_control_by_vooc = (chip->vbatt_num == 2 && oplus_vooc_get_fast_chg_type() == CHARGER_SUBTYPE_FASTCHG_VOOC);
+	}
+
+	if (chip->vooc_show_ui_soc_decimal) {
+		if(svooc_is_control_by_vooc != true && chip->boot_completed == true && chip->calculate_decimal_time == 0 && oplus_chg_show_vooc_logo_ornot() == true) {
+			cancel_delayed_work_sync(&chip->ui_soc_decimal_work);
+			oplus_chg_ui_soc_decimal_init();
+			schedule_work = mod_delayed_work(system_wq, &chip->ui_soc_decimal_work, 0);
+		}
+
+		val = (chip->ui_soc_integer + chip->ui_soc_decimal) / 10;
+		if(chip->decimal_control == false) {
+			val = 0;
+		}
+	} else {
+		val = 0;
+	}
+	pr_debug("Art_Chen entered chen_get_soc_decimal, final decimal %d", (val % 100));
+
+	return val != 0 ? val % 100 : 0;
+}
+
+const static int dec_rate_seq[] =
+{
+	0,38,
+	10,35,
+	20,33,
+	30,33,
+	40,33,
+	50,33,
+	60,33,
+	70,30,
+	80,25,
+	90,20,
+	95,10,
+};
+
+int chen_get_soc_decimal_rate(void) {
+	int soc, i;
+	struct oplus_chg_chip *chip = g_charger_chip;
+
+	if (!chip) {
+		return 0;
+	}
+
+	if (chip->vooc_show_ui_soc_decimal == true && chip->decimal_control) {
+		soc = (chip->ui_soc_integer + chip->ui_soc_decimal) / 1000;
+	} else {
+		soc = chip->ui_soc;
+	}
+// odd means soc, even means rate.
+	for (i = 0; i < 22; i += 2) {
+		if (soc < dec_rate_seq[i]) {
+			return dec_rate_seq[i - 1];
+		}
+	}
+
+	return dec_rate_seq[21];
+}
 
 int oplus_battery_property_is_writeable(struct power_supply *psy,
 		enum power_supply_property psp)
@@ -881,6 +983,15 @@ int oplus_battery_get_property(struct power_supply *psy,
 #endif
 		case POWER_SUPPLY_PROP_SOC_AJUST:
 			val->intval = chip->soc_ajust;
+			break;
+		case POWER_SUPPLY_PROP_QUICK_CHARGE_TYPE:
+			val->intval = chen_get_quick_charge_type();
+			break;
+		case POWER_SUPPLY_PROP_SOC_DECIMAL:
+			val->intval = chen_get_soc_decimal();
+			break;
+		case POWER_SUPPLY_PROP_SOC_DECIMAL_RATE:
+			val->intval = chen_get_soc_decimal_rate();
 			break;
 		default:
 			pr_err("get prop %d is not supported in batt\n", psp);
@@ -1873,6 +1984,7 @@ static void oplus_chg_show_ui_soc_decimal(struct work_struct *work)
 	} else {
 		oplus_chg_ui_soc_decimal_deinit();
 	}
+	power_supply_changed(chip->batt_psy);
 }
 
 static int charging_limit_time_show(struct seq_file *seq_filp, void *v)
