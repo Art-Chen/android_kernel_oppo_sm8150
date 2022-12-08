@@ -361,7 +361,7 @@ static void msm_restart_prepare(const char *cmd)
 		//warm reset
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 		qpnp_pon_set_restart_reason(
-					PON_RESTART_REASON_KERNEL);
+					PON_RESTART_REASON_RECOVERY);
 		flush_cache_all();
 
 		/*outer_flush_all is not supported by 64bit kernel*/
