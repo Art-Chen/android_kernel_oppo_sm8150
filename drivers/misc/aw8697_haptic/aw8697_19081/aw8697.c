@@ -6034,7 +6034,7 @@ static const struct i2c_device_id aw8697_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, aw8697_i2c_id);
 
 static struct of_device_id aw8697_dt_match[] = {
-    { .compatible = "awinic,aw8697_haptic,19081" },
+    { .compatible = "awinic,aw8697_haptic" },
     { },
 };
 
