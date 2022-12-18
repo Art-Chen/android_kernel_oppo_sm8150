@@ -1266,8 +1266,33 @@ static ssize_t chg_cycle_write(struct file *file,
 	return count;
 }
 
+static ssize_t batt_design_fcc_read(struct file *filp,
+		char __user *buff, size_t count, loff_t *off)
+{
+	char page[256] = {0};
+	char read_data[5] = "3900";
+	int len = 0;
+
+	len = sprintf(page, "%s", read_data);
+	if (len > *off) {
+		len -= *off;
+	} else {
+		len = 0;
+	}
+	if (copy_to_user(buff, page, (len < count ? len : count))) {
+		return -EFAULT;
+	}
+	*off += len < count ? len : count;
+	return (len < count ? len : count);
+}
+
 static const struct file_operations chg_cycle_proc_fops = {
 	.write = chg_cycle_write,
+	.llseek = noop_llseek,
+};
+
+static const struct file_operations batt_design_fcc_proc_fops = {
+	.read = batt_design_fcc_read,
 	.llseek = noop_llseek,
 };
 
@@ -1277,6 +1302,10 @@ static void init_proc_chg_cycle(void)
 			S_IWUSR | S_IWGRP | S_IWOTH,
 			NULL, &chg_cycle_proc_fops)) {
 		chg_err("proc_create chg_cycle_proc_fops fail!\n");
+	}
+
+	if (!proc_create("batt_full_design", 0666, NULL, &batt_design_fcc_proc_fops)) {
+		chg_err("proc_create batt_full_design faled!\n");
 	}
 }
 static ssize_t critical_log_read(struct file *filp,
