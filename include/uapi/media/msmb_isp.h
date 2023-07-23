@@ -1,3 +1,6 @@
+#if defined(OP_8150_ADAPT)
+#include "msmb_isp_op.h"
+#else
 #ifndef __UAPI_MSMB_ISP__
 #define __UAPI_MSMB_ISP__
 
@@ -35,6 +38,8 @@ struct isp_kstate {
 	uint32_t kernel_sofid;
 	uint32_t drop_reconfig;
 	uint32_t vfeid;
+	uint32_t dual_cam_drop_detected;
+	uint32_t dual_cam_drop;
 };
 
 enum ISP_START_PIXEL_PATTERN {
@@ -1149,4 +1154,5 @@ enum msm_isp_ioctl_cmd_code {
 	_IOW('V', MSM_ISP_NANOSEC_TIMESTAMP, \
 	struct msm_vfe_nano_sec_timestamp)
 
+#endif
 #endif /* __MSMB_ISP__ */

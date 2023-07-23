@@ -4,11 +4,18 @@
  */
 
 #include "oplus_sensor_devinfo.h"
+#include <linux/version.h>
+
 #define CLOSE_PD  1
 #define CLOSE_PD_CONDITION 2
+#define ALIGN4(s) ((sizeof(s) + 3)&(~0x3))
+#define SAR_MAX_CH_NUM 5
 
 extern int oplus_press_cali_data_init(void);
 extern void oplus_press_cali_data_clean(void);
+
+extern int pad_als_data_init(void);
+extern void pad_als_data_clean(void);
 
 struct sensor_info * g_chip = NULL;
 
@@ -23,7 +30,12 @@ static char* als_feature[] = {
     "is_als_initialed",
     "als_buffer_length",
     "normalization_value",
-    "use_lb_algo"
+    "use_lb_algo",
+    "para-matrix"
+};
+
+static char* als_rear_feature[] = {
+    "als-factor",
 };
 
 
@@ -133,64 +145,36 @@ static void parse_magnetic_sensor_dts(struct sensor_hw* hw, struct device_node *
     } else if (rc) {
         int prj_id = 0;
         int prj_dir[5];
-        int modem_type_id = 0;
-        int modem_type_dir[5];
         struct device_node *node = ch_node;
         struct device_node *ch_node_mag = NULL;
+        prj_id = get_project();
         for_each_child_of_node(node, ch_node_mag) {
             if (ch_node_mag == NULL) {
                 SENSOR_DEVINFO_DEBUG(" the mag_para use default parametyers");
                 return;
                 }
             rc = of_property_read_u32(ch_node_mag, "projects-num", &value);
-            if (!rc) {
-                prj_id = get_project();
-                SENSOR_DEVINFO_DEBUG("get that project is %d", prj_id);
-                rc = of_property_read_u32_array(ch_node_mag,
-                            "match-projects", &prj_dir[0], value);
-                for (di = 0; di < value; di++) {
-                    SENSOR_DEVINFO_DEBUG(" which get there are %d projects", prj_dir[di]);
-                    if (prj_dir[di] == prj_id) {
-                    rc = of_property_read_u32(ch_node_mag, "parameter-number", &value);
-                        if (!rc && value > 0 && value < PARAMETER_NUM) {
-                        rc = of_property_read_u32_array(ch_node_mag,
-                            "soft-mag-parameter", &hw->feature.parameter[0], value);
-                        for (di = 0; di < value; di++) {
-                            SENSOR_DEVINFO_DEBUG("soft magnetic parameter[%d] : %d\n", di,
-                                hw->feature.parameter[di]);
-                            }
-                            return;
-                        } else {
-                            pr_info("parse soft magnetic parameter failed!\n");
+            SENSOR_DEVINFO_DEBUG("get that project is %d", prj_id);
+            rc = of_property_read_u32_array(ch_node_mag,
+                        "match-projects", &prj_dir[0], value);
+            for (di = 0; di < value; di++) {
+                SENSOR_DEVINFO_DEBUG(" which get there are %d projects", prj_dir[di]);
+                if (prj_dir[di] == prj_id) {
+                rc = of_property_read_u32(ch_node_mag, "parameter-number", &value);
+                    if (!rc && value > 0 && value < PARAMETER_NUM) {
+                    rc = of_property_read_u32_array(ch_node_mag,
+                        "soft-mag-parameter", &hw->feature.parameter[0], value);
+                    for (di = 0; di < value; di++) {
+                        SENSOR_DEVINFO_DEBUG("soft magnetic parameter[%d] : %d\n", di,
+                            hw->feature.parameter[di]);
                         }
+                        return;
+                    } else {
+                        pr_info("parse soft magnetic parameter failed!\n");
                     }
-                    else
-                        continue;
                 }
-            }else if(!of_property_read_u32(ch_node_mag, "modem-type-num", &value)) {
-                modem_type_id = get_Modem_Version();
-                SENSOR_DEVINFO_DEBUG("get that modem-type is %d", modem_type_id);
-                rc = of_property_read_u32_array(ch_node_mag,
-                            "match-modem-type", &modem_type_dir[0], value);
-                for (di = 0; di < value; di++) {
-                    SENSOR_DEVINFO_DEBUG(" which get there are %d modem-type", modem_type_dir[di]);
-                    if (modem_type_dir[di] == modem_type_id) {
-                    rc = of_property_read_u32(ch_node_mag, "parameter-number", &value);
-                        if (!rc && value > 0 && value < PARAMETER_NUM) {
-                        rc = of_property_read_u32_array(ch_node_mag,
-                            "soft-mag-parameter", &hw->feature.parameter[0], value);
-                        for (di = 0; di < value; di++) {
-                            SENSOR_DEVINFO_DEBUG("soft magnetic parameter[%d] : %d\n", di,
-                                hw->feature.parameter[di]);
-                            }
-                            return;
-                        } else {
-                            pr_info("parse soft magnetic parameter failed!\n");
-                        }
-                    }
-                    else
-                        continue;
-                }
+                else
+                    continue;
             }
         }
     } else {
@@ -247,14 +231,6 @@ static void parse_proximity_sensor_dts(struct sensor_hw* hw, struct device_node 
         hw->feature.feature[3] = value;
     }
 
-    rc = of_property_read_u32(ch_node, "offset_calibration", &value);
-
-    hw->feature.feature[4] = 0;
-    if (!rc) {
-        hw->feature.feature[4] = value;
-        SENSOR_DEVINFO_DEBUG("offset_calibration: %d\n", hw->feature.feature[4]);
-    }
-
     for (di = 0; di < ARRAY_SIZE(param); di++) {
         rc = of_property_read_u32(ch_node, param[di], &value);
 
@@ -296,7 +272,7 @@ static void parse_light_sensor_dts(struct sensor_hw* hw, struct device_node *ch_
         if (!rc) {
             hw->feature.feature[di] = value;
         } else if (0 == strncmp(als_feature[di], "norm", 4)) {
-            hw->feature.feature[di] = 1057;
+			hw->feature.feature[di] = 1057;
         } else {
             pr_info("parse %s failed!", als_feature[di]);
         }
@@ -305,17 +281,77 @@ static void parse_light_sensor_dts(struct sensor_hw* hw, struct device_node *ch_
     }
 }
 
+static void parse_light_rear_sensor_dts(struct sensor_hw* hw, struct device_node *ch_node)
+{
+    int rc = 0;
+    int value = 0;
+    int di = 0;
+
+    for (di = 0; di < ARRAY_SIZE(als_rear_feature); di++) {
+        rc = of_property_read_u32(ch_node, als_rear_feature[di], &value);
+
+        if (!rc) {
+            hw->feature.feature[di] = value;
+        } else {
+            pr_info("parse %s failed!", als_rear_feature[di]);
+        }
+
+        SENSOR_DEVINFO_DEBUG("parse_light_rear_sensor_dts-feature[%d] : %d\n", di, hw->feature.feature[di]);
+    }
+}
+
 static void parse_sar_sensor_dts(struct sensor_hw* hw, struct device_node *ch_node)
+{
+	int di = 0;
+	int rc = 0;
+	int value = 0;
+	int dc_offset_default[SAR_MAX_CH_NUM * 2] = {0, 0, 0, 0, 0, 30000, 30000, 30000, 30000, 30000};
+	rc = of_property_read_u32(ch_node, "parameter-number", &value);
+	if (!rc && value > 0 && value < PARAMETER_NUM) {
+		rc = of_property_read_u32_array(ch_node,
+			"sensor-reg", &hw->feature.parameter[0], value);
+		for (di = 0; di < value / 2; di++) {
+			SENSOR_DEVINFO_DEBUG("sensor reg 0x%x = 0x%x\n", hw->feature.parameter[di * 2],
+				hw->feature.parameter[2 * di + 1]);
+		}
+	} else {
+			pr_info("parse sar sensor reg failed\n");
+	}
+	/*channel-num*/
+	rc = of_property_read_u32(ch_node, "channel-num", &value);
+	if (!rc && value < SAR_MAX_CH_NUM) {
+		hw->feature.feature[di] = value;
+		SENSOR_DEVINFO_DEBUG("sar channel-num: %d\n", value);
+	} else {
+		pr_info("parse sar sensor channel-num failed, rc %d, value %d", rc, value);
+	}
+	/*reg->dc_offset*/
+	rc = of_property_read_u32(ch_node, "is-dc-offset", &value);
+	if (!rc && value == 1) {
+		memcpy((void *)&hw->feature.reg[0], (void *)&dc_offset_default[0], SAR_MAX_CH_NUM * 2);
+		for (di = 0; di < SAR_MAX_CH_NUM; di++) {
+			SENSOR_DEVINFO_DEBUG("sar dc_offset_l[%d] = %d, dc_offset_H[%d] = %d",
+				di, hw->feature.reg[di], di + SAR_MAX_CH_NUM, hw->feature.reg[di + SAR_MAX_CH_NUM]);
+		}
+		rc = of_property_read_u32_array(ch_node, "dc-offset", &hw->feature.reg[0], SAR_MAX_CH_NUM * 2);
+		for (di = 0; di < SAR_MAX_CH_NUM; di++) {
+			SENSOR_DEVINFO_DEBUG("sar dc_offset_l[%d] = %d, dc_offset_H[%d] = %d",
+				di, hw->feature.reg[di], di + SAR_MAX_CH_NUM, hw->feature.reg[di + SAR_MAX_CH_NUM]);
+		}
+	} else {
+			pr_info("parse sar sensor dc_offset failed, rc %d, value %d", rc, value);
+	}
+
+}
+
+static void parse_down_sar_sensor_dts(struct sensor_hw* hw, struct device_node *ch_node)
 {
     int di = 0;
     int rc = 0;
     int value = 0;
-    int num_sum = 0;
-
     rc = of_property_read_u32(ch_node, "parameter-number", &value);
 
     if (!rc && value > 0 && value < PARAMETER_NUM) {
-        num_sum = value;
         rc = of_property_read_u32_array(ch_node,
                 "sensor-reg", &hw->feature.parameter[0], value);
 
@@ -323,23 +359,10 @@ static void parse_sar_sensor_dts(struct sensor_hw* hw, struct device_node *ch_no
             SENSOR_DEVINFO_DEBUG("sensor reg 0x%x = 0x%x\n", hw->feature.parameter[di * 2],
                 hw->feature.parameter[2 * di + 1]);
         }
-    } else {
-        pr_info("parse sar sensor reg failed\n");
-    }
 
-    rc = of_property_read_u32(ch_node, "feature-number", &value);
-
-    if (!rc && value > 0 && value < FEATURE_NUM) {
-        num_sum +=  value;
-        rc = of_property_read_u32_array(ch_node,"sensor-feature-reg", &hw->feature.feature[0], value);
-        for (di = 0; di < value / 2; di++) {
-            SENSOR_DEVINFO_DEBUG("sensor feature reg 0x%x = 0x%x\n", hw->feature.feature[di * 2],
-                hw->feature.feature[2 * di + 1]);
-        }
     } else {
-        pr_info("parse sar sensor feature reg failed\n");
+        pr_info("parse down-sar sensor reg failed\n");
     }
-    hw->feature.parameter[24] = num_sum/2;
 
 }
 
@@ -441,6 +464,28 @@ static void parse_cct_rear_sensor_dts(struct sensor_hw *hw, struct device_node *
     }
 }
 
+static void parse_accelerometer_sensor_dts(struct sensor_hw *hw, struct device_node *ch_node)
+{
+    int value = 0;
+    int rc = 0;
+    int di = 0;
+    char *feature[] = {
+        "use-sois"
+    };
+
+    hw->feature.feature[0] = 0;//default not use s-ois
+
+    for (di = 0; di < ARRAY_SIZE(feature); di++) {
+        rc = of_property_read_u32(ch_node, feature[di], &value);
+
+        if (!rc) {
+            hw->feature.feature[di] = value;
+        }
+
+        SENSOR_DEVINFO_DEBUG("gsensor_feature[%d] : %d\n", di, hw->feature.feature[di]);
+    }
+}
+
 static void parse_each_physical_sensor_dts(struct sensor_hw* hw, struct device_node *ch_node)
 {
     if (0 == strncmp(ch_node->name, "msensor", 7)) {
@@ -455,6 +500,12 @@ static void parse_each_physical_sensor_dts(struct sensor_hw* hw, struct device_n
         parse_cct_sensor_dts(hw, ch_node);
     } else if (0 == strncmp(ch_node->name, "cctrsensor", 7)) {
         parse_cct_rear_sensor_dts(hw, ch_node);
+    } else if (0 == strncmp(ch_node->name, "sdsensor", 7)) {
+        parse_down_sar_sensor_dts(hw, ch_node);
+    } else if (0 == strncmp(ch_node->name, "lrsensor", 7)) {
+        parse_light_rear_sensor_dts(hw, ch_node);
+    } else if (0 == strncmp(ch_node->name, "gsensor", 7)) {
+        parse_accelerometer_sensor_dts(hw, ch_node);
     } else {
         //do nothing
     }
@@ -521,31 +572,18 @@ static void parse_fp_display_sensor_dts(struct sensor_algorithm *algo, struct de
     SENSOR_DEVINFO_DEBUG("prox-type :%d\n", algo->parameter[0]);
 }
 
-static void parse_camera_protect_sensor_dts(struct sensor_algorithm *algo, struct device_node *ch_node)
+static void parse_mag_fusion_sensor_dts(struct sensor_algorithm *algo, struct device_node *ch_node)
 {
     int rc = 0;
     int value = 0;
-    rc = of_property_read_u32(ch_node, "layout_offset_x", &value);
+
+    rc = of_property_read_u32(ch_node, "fusion-type", &value);
+
     if (!rc) {
-        algo->parameter[0] = value;
+        algo->feature[0] = value;
     }
 
-    rc = of_property_read_u32(ch_node, "layout_offset_y", &value);
-    if (!rc) {
-        algo->parameter[1] = value;
-    }
-
-    rc = of_property_read_u32(ch_node, "init_pin", &value);
-    if (!rc) {
-        algo->parameter[2] = value;
-    }
-
-    rc = of_property_read_u32(ch_node, "is_chip_pin", &value);
-    if (!rc) {
-        algo->parameter[3] = value;
-    }
-    SENSOR_DEVINFO_DEBUG("layout_offset_x: %d, layout_offset_y: %d, init_pin: %d, is_chip_pin: %d\n",
-        algo->parameter[0], algo->parameter[1], algo->parameter[2], algo->parameter[3]);
+    SENSOR_DEVINFO_DEBUG("fusion-type :%d\n", algo->feature[0]);
 }
 
 static void parse_each_virtual_sensor_dts(struct sensor_algorithm *algo, struct device_node * ch_node)
@@ -556,8 +594,8 @@ static void parse_each_virtual_sensor_dts(struct sensor_algorithm *algo, struct 
         parse_lux_aod_sensor_dts(algo, ch_node);
     } else if (0 == strncmp(ch_node->name, "fp_display", 6)) {
         parse_fp_display_sensor_dts(algo, ch_node);
-    } else if (0 == strncmp(ch_node->name, "camera_protect", 6)) {
-        parse_camera_protect_sensor_dts(algo, ch_node);
+    } else if (0 == strncmp(ch_node->name, "mag_fusion", 10)) {
+        parse_mag_fusion_sensor_dts(algo, ch_node);
     } else {
         // do nothing
     }
@@ -663,10 +701,6 @@ static ssize_t als_type_read_proc(struct file *file, char __user *buf,
     return (len < count ? len : count);
 }
 
-static struct file_operations als_type_fops = {
-    .read = als_type_read_proc,
-};
-
 static ssize_t red_max_lux_read_proc(struct file *file, char __user *buf,
     size_t count, loff_t *off)
 {
@@ -731,10 +765,7 @@ static ssize_t red_max_lux_write_proc(struct file *file, const char __user *buf,
 
     return count;
 }
-static struct file_operations red_max_lux_fops = {
-    .read = red_max_lux_read_proc,
-    .write = red_max_lux_write_proc,
-};
+
 static ssize_t white_max_lux_read_proc(struct file *file, char __user *buf,
     size_t count, loff_t *off)
 {
@@ -799,10 +830,7 @@ static ssize_t white_max_lux_write_proc(struct file *file, const char __user *bu
 
     return count;
 }
-static struct file_operations white_max_lux_fops = {
-    .read = white_max_lux_read_proc,
-    .write = white_max_lux_write_proc,
-};
+
 static ssize_t blue_max_lux_read_proc(struct file *file, char __user *buf,
     size_t count, loff_t *off)
 {
@@ -867,10 +895,7 @@ static ssize_t blue_max_lux_write_proc(struct file *file, const char __user *buf
 
     return count;
 }
-static struct file_operations blue_max_lux_fops = {
-    .read = blue_max_lux_read_proc,
-    .write = blue_max_lux_write_proc,
-};
+
 static ssize_t green_max_lux_read_proc(struct file *file, char __user *buf,
     size_t count, loff_t *off)
 {
@@ -935,10 +960,7 @@ static ssize_t green_max_lux_write_proc(struct file *file, const char __user *bu
 
     return count;
 }
-static struct file_operations green_max_lux_fops = {
-    .read = green_max_lux_read_proc,
-    .write = green_max_lux_write_proc,
-};
+
 static ssize_t cali_coe_read_proc(struct file *file, char __user *buf,
     size_t count, loff_t *off)
 {
@@ -964,6 +986,7 @@ static ssize_t cali_coe_read_proc(struct file *file, char __user *buf,
     *off += len < count ? len : count;
     return (len < count ? len : count);
 }
+
 static ssize_t cali_coe_write_proc(struct file *file, const char __user *buf,
     size_t count, loff_t *off)
 
@@ -1003,10 +1026,7 @@ static ssize_t cali_coe_write_proc(struct file *file, const char __user *buf,
 
     return count;
 }
-static struct file_operations cali_coe_fops = {
-    .read = cali_coe_read_proc,
-    .write = cali_coe_write_proc,
-};
+
 static ssize_t row_coe_read_proc(struct file *file, char __user *buf,
     size_t count, loff_t *off)
 {
@@ -1032,6 +1052,7 @@ static ssize_t row_coe_read_proc(struct file *file, char __user *buf,
     *off += len < count ? len : count;
     return (len < count ? len : count);
 }
+
 static ssize_t row_coe_write_proc(struct file *file, const char __user *buf,
     size_t count, loff_t *off)
 
@@ -1071,10 +1092,76 @@ static ssize_t row_coe_write_proc(struct file *file, const char __user *buf,
 
     return count;
 }
-static struct file_operations row_coe_fops = {
-    .read = row_coe_read_proc,
-    .write = row_coe_write_proc,
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+static const struct proc_ops als_type_fops = {
+        .proc_read = als_type_read_proc,
 };
+
+static const struct proc_ops red_max_lux_fops = {
+        .proc_read = red_max_lux_read_proc,
+        .proc_write = red_max_lux_write_proc,
+};
+
+static const struct proc_ops white_max_lux_fops = {
+        .proc_read = white_max_lux_read_proc,
+        .proc_write = white_max_lux_write_proc,
+};
+
+static const struct proc_ops blue_max_lux_fops = {
+        .proc_read = blue_max_lux_read_proc,
+        .proc_write = blue_max_lux_write_proc,
+};
+
+static const struct proc_ops green_max_lux_fops = {
+        .proc_read = green_max_lux_read_proc,
+        .proc_write = green_max_lux_write_proc,
+};
+
+static const struct proc_ops cali_coe_fops = {
+        .proc_read = cali_coe_read_proc,
+        .proc_write = cali_coe_write_proc,
+};
+
+static const struct proc_ops row_coe_fops = {
+        .proc_read = row_coe_read_proc,
+        .proc_write = row_coe_write_proc,
+};
+#else
+static struct file_operations als_type_fops = {
+        .read = als_type_read_proc,
+};
+
+static struct file_operations red_max_lux_fops = {
+        .read = red_max_lux_read_proc,
+        .write = red_max_lux_write_proc,
+};
+
+static struct file_operations white_max_lux_fops = {
+        .read = white_max_lux_read_proc,
+        .write = white_max_lux_write_proc,
+};
+
+static struct file_operations blue_max_lux_fops = {
+        .read = blue_max_lux_read_proc,
+        .write = blue_max_lux_write_proc,
+};
+
+static struct file_operations green_max_lux_fops = {
+        .read = green_max_lux_read_proc,
+        .write = green_max_lux_write_proc,
+};
+
+static struct file_operations cali_coe_fops = {
+        .read = cali_coe_read_proc,
+        .write = cali_coe_write_proc,
+};
+
+static struct file_operations row_coe_fops = {
+        .read = row_coe_read_proc,
+        .write = row_coe_write_proc,
+};
+#endif
 
 static int oplus_als_cali_data_init()
 {
@@ -1172,22 +1259,27 @@ static int oplus_devinfo_probe(struct platform_device *pdev)
 
     pr_info("%s call\n", __func__);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+        smem_size = ALIGN4(struct sensor_info);
+        rc = qcom_smem_alloc(QCOM_SMEM_HOST_ANY, SMEM_SENSOR, smem_size);
+        if (rc < 0 && rc != -EEXIST) {
+                pr_err("%s smem_alloc fail\n", __func__);
+                rc = -EFAULT;
+                return rc;
+        }
+
+        smem_size = 0;
+#endif
     smem_addr = qcom_smem_get(QCOM_SMEM_HOST_ANY,
             SMEM_SENSOR,
             &smem_size);
 
     if (IS_ERR(smem_addr)) {
-        pr_err("unable to acquire smem SMEM_SENSOR entry\n");
-        return -ENOMEM;
+        pr_err("unable to acquire smem SMEM_SENSOR entry, smem_addr %p\n", smem_addr);
+        return -EPROBE_DEFER; /*return -EPROBE_DEFER if smem not ready*/
     }
 
     chip = (struct sensor_info *)(smem_addr);
-
-    if (chip == ERR_PTR(-EPROBE_DEFER)) {
-        chip = NULL;
-        pr_err("unable to acquire entry\n");
-        return -ENOMEM;
-    }
 
     memset(chip, 0, sizeof(struct sensor_info));
 
@@ -1266,7 +1358,7 @@ static int __init oplus_devinfo_init(void)
     return 0;
 }
 
-core_initcall(oplus_devinfo_init);
+arch_initcall(oplus_devinfo_init);
 
 MODULE_DESCRIPTION("sensor devinfo");
 MODULE_LICENSE("GPL");

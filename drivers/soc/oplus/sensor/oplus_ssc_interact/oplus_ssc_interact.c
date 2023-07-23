@@ -1,16 +1,7 @@
-/******************************************************************
-** Copyright (C), 2004-2017, OPPO Mobile Comm Corp., Ltd.
-** VENDOR_EDIT
-** File: - oppo_ssc_interactive.c
-** Description: Source file for send lcm info to slpi.
-** Version: 1.0
-** Date : 2020/04/25
-** Author: tangjh@PSW.BSP.Sensor
-**
-** --------------------------- Revision History: ---------------------
-* <version>    <date>        <author>                      <desc>
-* Revision 1.0      2020/04/25        tangjh@PSW.BSP.Sensor       Created, send lcm info to slpi
-*******************************************************************/
+/* SPDX-License-Identifier: GPL-2.0-only  */
+/*
+ * Copyright (C) 2018-2020 Oplus. All rights reserved.
+ */
 
 #define pr_fmt(fmt) "<ssc_interactive>" fmt
 
@@ -31,8 +22,8 @@
 
 //static DECLARE_KFIFO_PTR(test, struct fifo_frame);
 
-int register_lcdinfo_notifier(struct notifier_block *nb);
-int unregister_lcdinfo_notifier(struct notifier_block *nb);
+extern int register_lcdinfo_notifier(struct notifier_block *nb);
+extern int unregister_lcdinfo_notifier(struct notifier_block *nb);
 
 static struct ssc_interactive *g_ssc_cxt = NULL;
 
@@ -379,5 +370,5 @@ static void __exit ssc_interactive_exit(void)
 
 module_init(ssc_interactive_init);
 module_exit(ssc_interactive_exit);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("JiangHua.Tang <>");
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("JiangHua.Tang <tangjh@oppo.com>");

@@ -5,7 +5,6 @@
 ** Description : oppo dc_diming feature
 ** Version : 1.0
 ** Date : 2020/04/15
-** Author : Qianxu@MM.Display.LCD Driver
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -32,4 +31,5 @@ int oppo_display_panel_get_dim_alpha(void *buf);
 int oppo_display_panel_set_dim_alpha(void *buf);
 int oppo_display_panel_get_dim_dc_alpha(void *buf);
 int dsi_panel_parse_oppo_dc_config(struct dsi_panel *panel);
+int oplus_dsi_display_enable_and_waiting_for_next_te_irq(void);
 #endif /*_OPPO_DC_DIMING_H_*/

@@ -5,7 +5,6 @@
 ** Description : oppo display panel hbm feature
 ** Version : 1.0
 ** Date : 2020/07/06
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>		<data>		<version >		<desc>
@@ -13,6 +12,7 @@
 ******************************************************************/
 #include "oppo_display_panel_hbm.h"
 #include "oppo_dsi_support.h"
+#include "oppo_dc_diming.h"
 
 int hbm_mode = 0;
 DEFINE_MUTEX(oppo_hbm_lock);
@@ -95,9 +95,16 @@ int dsi_panel_hbm_off(struct dsi_panel *panel)
 
 	dsi_panel_set_backlight(panel, panel->bl_config.bl_level);
 
-	if (!strcmp(panel->oppo_priv.vendor_name, "AMS643YE01") && (panel->bl_config.bl_level > 2047))
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER_SWITCH);
-	else
+	if (!strcmp(panel->oppo_priv.vendor_name, "AMS643YE01") && (panel->bl_config.bl_level > 2047)) {
+		if (!strcmp(panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC") ||
+			!strcmp(panel->name, "samsung 20331 ams643ye01 amoled fhd+ panel without DSC")) {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER1_SWITCH);
+			oplus_dsi_display_enable_and_waiting_for_next_te_irq();
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER2_SWITCH);
+		} else {
+			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER_SWITCH);
+		}
+	} else
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_OFF);
 	if (rc) {
 		pr_err("[%s] failed to send DSI_CMD_HBM_OFF cmds, rc=%d\n",
@@ -260,8 +267,8 @@ int oppo_display_panel_get_hbm(void *buf)
 	return 0;
 }
 
-#ifdef OPLUS_FEATURE_90FPS_GLOBAL_HBM
-/*xupengcheng@MULTIMEDIA.DISPLAY.LCD, 2020/12/29, add for samsung 90fps Global HBM backlight issue*/
+#ifdef OPLUS_BUG_STABILITY
+/*Add for solve backlight issue for hbm*/
 int oppo_dsi_hbm_backlight_setting(bool enabled)
 {
 	struct dsi_display *display = get_main_display();
@@ -271,20 +278,17 @@ int oppo_dsi_hbm_backlight_setting(bool enabled)
 		pr_err("failed for: %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-
-	if(!strcmp(display->panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")){
-		if(enabled){
-			ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_ON);
-			if (ret) {
-				pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_ON cmds, rc=%d\n",display->panel->name, ret);
-			}
-		} else {
-			ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_OFF);
-			if (ret) {
-				pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_OFF cmds, rc=%d\n",display->panel->name, ret);
-			}
+	if(enabled) {
+		ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_ON);
+		if (ret) {
+			pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_ON cmds, rc=%d\n", display->panel->name, ret);
+		}
+	} else {
+        ret = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_HBM_BACKLIGHT_OFF);
+		if (ret) {
+			pr_err("[%s] failed to send DSI_CMD_HBM_BACKLIGHT_OFF cmds, rc=%d\n", display->panel->name, ret);
 		}
 	}
 	return ret;
 }
-#endif /*OPLUS_FEATURE_90FPS_GLOBAL_HBM*/
+#endif /*OPLUS_BUG_STABILITY*/

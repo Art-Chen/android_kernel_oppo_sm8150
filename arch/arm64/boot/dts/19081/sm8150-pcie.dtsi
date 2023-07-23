@@ -17,6 +17,9 @@
 	pcie0: qcom,pcie@1c00000 {
 		compatible = "qcom,pci-msm";
 		cell-index = <0>;
+		//#ifdef VENDOR_EDIT
+		status = "disabled";
+		//#endif
 
 		reg = <0x1c00000 0x4000>,
 			<0x1c04000 0x1000>,

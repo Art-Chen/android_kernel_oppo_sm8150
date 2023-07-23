@@ -99,13 +99,11 @@
 			snps,hird-threshold = /bits/ 8 <0x10>;
 			snps,ssp-u3-u0-quirk;
 //#ifndef VENDOR_EDIT
-			/*zhijie.li@BSP.CHG.Basic, 2019/1/25, lzj add for RF and USB3.0 interfere*/
 			//snps,usb3-u1u2-disable;
 //#endif
 			usb-core-id = <0>;
 			tx-fifo-resize;
 //#ifdef VENDOR_EDIT
-			/*zhijie.li@BSP.CHG.Basic, 2019/1/25, lzj add for RF and USB2.0 interfere*/
 			maximum-speed = "high-speed";
 //#else
 			//maximum-speed = "super-speed-plus";
@@ -359,6 +357,7 @@
 		reg-names = "core_base";
 
 		iommus = <&apps_smmu 0x160 0x0>;
+		qcom,smmu-s1-bypass;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -426,11 +425,10 @@
 			snps,disable-clk-gating;
 			snps,has-lpm-erratum;
 			snps,hird-threshold = /bits/ 8 <0x10>;
-			snps,ssp-u3-u0-quirk;
-			snps,usb3-u1u2-disable;
+			snps,usb3_lpm_capable;
 			usb-core-id = <1>;
 			tx-fifo-resize;
-			maximum-speed = "super-speed-plus";
+			maximum-speed = "super-speed";
 			dr_mode = "otg";
 		};
 	};

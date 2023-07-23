@@ -5,7 +5,6 @@
 ** Description : oppo onscreenfingerprint feature
 ** Version : 1.0
 ** Date : 2020/04/15
-** Author : Qianxu@MM.Display.LCD Driver
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -23,8 +22,17 @@
 
 #define FFL_FP_LEVEL 150
 
+enum CUST_ALPHA_ENUM{
+	CUST_A_NO = 0,
+	CUST_A_TRANS,  /* alpha = 0, transparent */
+	CUST_A_OPAQUE, /* alpha = 255, opaque */
+};
+
+void oppo_set_aod_dim_alpha(int cust);
 
 int oppo_get_panel_brightness(void);
+
+int oppo_get_panel_power_mode(void);
 
 int dsi_panel_parse_oppo_fod_config(struct dsi_panel *panel);
 
@@ -55,4 +63,5 @@ bool _sde_encoder_setup_dither_for_onscreenfingerprint(struct sde_encoder_phys *
 
 int sde_plane_check_fingerprint_layer(const struct drm_plane_state *drm_state);
 
+int oplus_display_panel_get_dimlayer_hbm(void *data);
 #endif /*_OPPO_ONSCREENFINGERPRINT_H_*/

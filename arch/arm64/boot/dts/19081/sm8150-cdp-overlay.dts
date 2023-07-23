@@ -21,8 +21,7 @@
 #include "sm8150-cdp.dtsi"
 #include "sm8150-cdp-audio-overlay.dtsi"
 
-//#ifdef VENDOR_EDIT
-//xiang.fei@PSW.MM.AudioDriver.Codec, 2019/07/13, Add for audio config */
+//#ifdef OPLUS_ARCH_EXTENDS
 #include "sm8150-oppo-audio-overlay.dtsi"
 //#endif
 

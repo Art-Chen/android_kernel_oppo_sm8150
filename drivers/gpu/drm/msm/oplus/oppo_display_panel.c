@@ -5,7 +5,6 @@
 ** Description : oppo display panel char dev  /dev/oppo_panel
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -13,12 +12,17 @@
 ******************************************************************/
 #include "oppo_display_panel.h"
 
+int oplus_display_panel_set_hecate_info(void *buf);
+
 #define PANEL_IOCTL_DEF(ioctl, _func) \
 	[PANEL_IOCTL_NR(ioctl)] = {		\
 		.cmd = ioctl,			\
 		.func = _func,			\
 		.name = #ioctl,			\
 	}
+extern int oppo_display_set_aod_area(void *buf);
+extern int oplus_display_panel_set_dimlayer_enable(void *data);
+extern int oplus_display_panel_get_brightness(void *buf);
 
 static const struct panel_ioctl_desc panel_ioctls[] = {
 	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_POWER, oppo_display_panel_set_pwr),
@@ -41,26 +45,68 @@ static const struct panel_ioctl_desc panel_ioctls[] = {
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_DIM_ALPHA, oppo_display_panel_get_dim_alpha),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_DIM_DC_ALPHA, oppo_display_panel_set_dim_alpha),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_DIM_DC_ALPHA, oppo_display_panel_get_dim_dc_alpha),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_POWER_STATUS, oppo_display_panel_set_power_status),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_POWER_STATUS, oppo_display_panel_get_power_status),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_CLOSEBL_FLAG, oplus_display_panel_set_closebl_flag),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_CLOSEBL_FLAG, oplus_display_panel_get_closebl_flag),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_DIMLAYER_HBM, oplus_display_panel_set_dimlayer_hbm),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_DIMLAYER_HBM, oplus_display_panel_get_dimlayer_hbm),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_DIMLAYER_BL_EN, oplus_display_panel_set_dimlayer_enable),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_OPLUS_BRIGHTNESS, oplus_display_panel_get_brightness),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_AOD_AREA,  oppo_display_set_aod_area),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_HECATE_INFO,  oplus_display_panel_set_hecate_info),
 };
 
-static int panel_open(struct inode *inode, struct file *filp)
+static struct hecate_info mhecate_info[2] = {{ 0 }, { 0 }};
+int oplus_display_panel_set_hecate_info(void *buf)
 {
-	if (panel_ref) {
-		pr_err("%s panel has already open\n", __func__);
-		return -1;
-	}
+	struct hecate_info *h_info = buf;
 
-	++panel_ref;
-	try_module_get(THIS_MODULE);
+	uint32_t display_id = h_info->display_id;
+	mhecate_info[display_id].display_id = h_info->display_id;
+	mhecate_info[display_id].kgsl_dump = h_info->kgsl_dump;
+	pr_err("%s, displayid = %d, kgsl dump = %d", __func__,
+		h_info->display_id, mhecate_info[display_id].kgsl_dump);
 
 	return 0;
 }
 
+static int panel_open(struct inode *inode, struct file *filp)
+{
+	if (panel_ref > 3) {
+		pr_err("%s panel has already open\n", __func__);
+		return -1;
+	}
+
+	if (panel_ref == 1) {
+		try_module_get(THIS_MODULE);
+	}
+
+	++panel_ref;
+
+	return 0;
+}
+#if 0
+extern ssize_t oplus_sde_evtlog_dump_read(struct file *file, char __user *buff,
+		size_t count, loff_t *ppos);
+#endif
 static ssize_t panel_read(struct file *filp, char __user *buffer,
 		size_t count, loff_t *offset)
 {
-	pr_err("%s\n", __func__);
-	return count;
+	ssize_t lens = 0;
+
+// Art_Chen: removed due to disabled sde_dbg
+#if 0
+	if (mhecate_info[0].kgsl_dump) {
+		lens += oplus_sde_evtlog_dump_read(filp, buffer, count, offset);
+		if (lens < 0) {
+			lens = 0;
+		}
+	}
+#endif
+	/*other dump add here, as for lens add*/
+
+	return lens;
 }
 
 static ssize_t panel_write(struct file *file, const char __user *buffer,
@@ -88,7 +134,7 @@ long panel_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	ioctl = &panel_ioctls[nr];
 	func = ioctl->func;
 	if (unlikely(!func)) {
-		pr_err("%s no function\n", __func__);
+		pr_err("%s no function  nr = 0x%x\n", __func__ , nr);
 		retcode = -EINVAL;
 		return retcode;
 	}
@@ -102,12 +148,12 @@ long panel_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	ksize = max(max(in_size, out_size), drv_size);
 
-	pr_err("%s pid = %d, cmd = %s\n", __func__, task_pid_nr(current), ioctl->name);
+	pr_debug("%s pid = %d, cmd = %s\n", __func__, task_pid_nr(current), ioctl->name);
 
 	if (ksize <= sizeof(static_data)) {
 		kdata = static_data;
 	} else {
-		kdata = kmalloc(sizeof(ksize), GFP_KERNEL);
+		kdata = kmalloc(ksize, GFP_KERNEL);
 		if (!kdata) {
 			retcode = -ENOMEM;
 			goto err_panel;
@@ -137,7 +183,7 @@ err_panel:
 		kfree(kdata);
 	}
 	if (retcode) {
-		pr_err("%s pid = %d, retcode = %s\n", __func__, task_pid_nr(current), retcode);
+		pr_err("%s pid = %d, retcode = %d\n", __func__, task_pid_nr(current), retcode);
 	}
 	return retcode;
 }
@@ -162,7 +208,7 @@ static const struct file_operations panel_ops =
 	.write              = panel_write,
 };
 
-static int __init oppo_display_panel_init()
+static int __init oppo_display_panel_init(void)
 {
 	int rc = 0;
 
@@ -217,4 +263,4 @@ void __exit oppo_display_panel_exit(void)
 module_init(oppo_display_panel_init);
 module_exit(oppo_display_panel_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Lisheng <>");
+MODULE_AUTHOR("Lisheng <lisheng1@oppo.com>");

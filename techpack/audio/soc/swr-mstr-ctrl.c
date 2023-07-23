@@ -373,13 +373,13 @@ static int swr_master_bulk_write(struct swr_mstr_ctrl *swrm, u32 *reg_addr,
 		 * This still meets the hardware spec
 		 */
 			#ifndef OPLUS_BUG_STABILITY
-			/*Sruesh.Allau@MULTIMEDIA.AUDIODRIVER.CODEC.35065, 2020/08/14,
-			 *Modify for CR#2648163 fixing fifo overflow/underflow,
-			 *causing headset detect issues
-			 */
-			usleep_range(100, 105);
+			usleep_range(10, 12);
 			#else /* OPLUS_BUG_STABILITY */
+#ifdef OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL
+			usleep_range(100, 105);
+#else
 			usleep_range(50, 55);
+#endif
 			#endif /* OPLUS_BUG_STABILITY */
 			swr_master_write(swrm, reg_addr[i], val[i]);
 		}

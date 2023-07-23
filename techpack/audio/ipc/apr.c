@@ -322,7 +322,6 @@ static void apr_adsp_up(void)
 	snd_event_notify(apr_priv->dev, SND_EVENT_UP);
 
 	#ifdef OPLUS_FEATURE_ADSP_RECOVERY
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2434874, 2020/08/14, Add for workaround fix adsp stuck issue*/
 	oplus_set_ssr_state(false);
 	#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
 }

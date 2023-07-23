@@ -14,7 +14,6 @@
 #include "cam_cci_core.h"
 #include "cam_cci_dev.h"
 #ifdef VENDOR_EDIT
-/*add by hongbo.dai@Camera 20181109, for support Laser*/
 #include "cam_cci_ctrl_interface.h"
 #endif
 static int32_t cam_cci_convert_type_to_num_bytes(
@@ -52,6 +51,9 @@ static void cam_cci_flush_queue(struct cci_device *cci_dev,
 	void __iomem *base = soc_info->reg_map[0].mem_base;
 
 	cam_io_w_mb(1 << master, base + CCI_HALT_REQ_ADDR);
+	if (!cci_dev->cci_master_info[master].status)
+		reinit_completion(&cci_dev->cci_master_info[master]
+			.reset_complete);
 	rc = wait_for_completion_timeout(
 		&cci_dev->cci_master_info[master].reset_complete, CCI_TIMEOUT);
 	if (rc < 0) {
@@ -61,6 +63,7 @@ static void cam_cci_flush_queue(struct cci_device *cci_dev,
 
 		/* Set reset pending flag to TRUE */
 		cci_dev->cci_master_info[master].reset_pending = TRUE;
+		cci_dev->cci_master_info[master].status = 0;
 
 		/* Set proper mask to RESET CMD address based on MASTER */
 		if (master == MASTER_0)
@@ -76,6 +79,7 @@ static void cam_cci_flush_queue(struct cci_device *cci_dev,
 			CCI_TIMEOUT);
 		if (rc <= 0)
 			CAM_ERR(CAM_CCI, "wait failed %d", rc);
+		cci_dev->cci_master_info[master].status = 0;
 	}
 }
 
@@ -137,8 +141,10 @@ static int32_t cam_cci_validate_queue(struct cci_device *cci_dev,
 			return rc;
 		}
 		rc = cci_dev->cci_master_info[master].status;
-		if (rc < 0)
+		if (rc < 0) {
 			CAM_ERR(CAM_CCI, "Failed rc %d", rc);
+			cci_dev->cci_master_info[master].status = 0;
+		}
 	}
 
 	return rc;
@@ -333,6 +339,7 @@ out:
 	rc = cci_dev->cci_master_info[master].status;
 	if (rc < 0) {
 		CAM_ERR(CAM_CCI, "failed rc %d", rc);
+		cci_dev->cci_master_info[master].status = 0;
 		return rc;
 	}
 
@@ -906,7 +913,7 @@ static int32_t cam_cci_data_queue(struct cci_device *cci_dev,
 
 	rc = cam_cci_transfer_end(cci_dev, master, queue);
 	if (rc < 0) {
-		CAM_ERR(CAM_CCI, "failed rc %d", rc);
+		CAM_ERR(CAM_CCI, "Slave: 0x%x failed rc %d",(c_ctrl->cci_info->sid << 1), rc);
 		return rc;
 	}
 
@@ -923,7 +930,6 @@ static int32_t cam_cci_burst_read(struct v4l2_subdev *sd,
 	int32_t index = 0, first_byte = 0, total_read_words = 0;
 	enum cci_i2c_master_t master;
 #ifdef VENDOR_EDIT
-    /*Added by zhaominghui@Cam.Drv, 20190528 for OIS ptimization, add qualcomm patch*/
 	enum cci_i2c_queue_t queue = QUEUE_0;
 #else
 	enum cci_i2c_queue_t queue = QUEUE_1;
@@ -1083,6 +1089,13 @@ static int32_t cam_cci_burst_read(struct v4l2_subdev *sd,
 			cam_cci_flush_queue(cci_dev, master);
 			goto rel_mutex_q;
 		}
+		if (cci_dev->cci_master_info[master].status) {
+			CAM_ERR(CAM_CCI, "Error with Salve: 0x%x",
+				(c_ctrl->cci_info->sid << 1));
+			rc = -EINVAL;
+			cci_dev->cci_master_info[master].status = 0;
+			goto rel_mutex_q;
+		}
 
 		read_words = cam_io_r_mb(base +
 			CCI_I2C_M0_READ_BUF_LEVEL_ADDR + master * 0x100);
@@ -1164,6 +1177,14 @@ static int32_t cam_cci_burst_read(struct v4l2_subdev *sd,
 					cam_cci_flush_queue(cci_dev, master);
 				goto rel_mutex_q;
 			}
+			if (cci_dev->cci_master_info[master].status) {
+				CAM_ERR(CAM_CCI, "Error with Slave 0x%x",
+					(c_ctrl->cci_info->sid << 1));
+				rc = -EINVAL;
+				cci_dev->cci_master_info[master].status = 0;
+				goto rel_mutex_q;
+			}
+
 			break;
 		}
 	}
@@ -1193,7 +1214,6 @@ static int32_t cam_cci_read(struct v4l2_subdev *sd,
 	uint32_t i = 0;
 	enum cci_i2c_master_t master;
 #ifdef VENDOR_EDIT
-    /*Added by zhaominghui@Cam.Drv, 20190528 for OIS ptimization, add qualcomm patch*/
 	enum cci_i2c_queue_t queue = QUEUE_0;
 #else
 	enum cci_i2c_queue_t queue = QUEUE_1;
@@ -1353,6 +1373,13 @@ static int32_t cam_cci_read(struct v4l2_subdev *sd,
 		goto rel_mutex_q;
 	} else {
 		rc = 0;
+	}
+	if (cci_dev->cci_master_info[master].status) {
+		CAM_ERR(CAM_CCI, "ERROR with Slave 0x%x:",
+			(c_ctrl->cci_info->sid << 1));
+		rc = -EINVAL;
+		cci_dev->cci_master_info[master].status = 0;
+		goto rel_mutex_q;
 	}
 
 	read_words = cam_io_r_mb(base +
@@ -1611,6 +1638,7 @@ static int32_t cam_cci_read_bytes(struct v4l2_subdev *sd,
 	 * THRESHOLD irq's, we reinit the threshold wait before
 	 * we load the burst read cmd.
 	 */
+	reinit_completion(&cci_dev->cci_master_info[master].rd_done);
 	reinit_completion(&cci_dev->cci_master_info[master].th_complete);
 
 	CAM_DBG(CAM_CCI, "Bytes to read %u", read_bytes);
@@ -1724,7 +1752,6 @@ static int32_t cam_cci_write(struct v4l2_subdev *sd,
 	case MSM_CCI_I2C_WRITE_SEQ:
 	case MSM_CCI_I2C_WRITE_BURST:
 #ifdef 	VENDOR_EDIT
-        /*Added by zhaominghui@Cam.Drv, 20190528 for OIS ptimization, add qualcomm patch*/
         for (i = 0; i < 1; i++) {
 #else
         for (i = 0; i < NUM_QUEUES; i++) {
@@ -1757,7 +1784,31 @@ int32_t cam_cci_core_cfg(struct v4l2_subdev *sd,
 {
 	int32_t rc = 0;
 	struct cci_device *cci_dev = v4l2_get_subdevdata(sd);
+	enum cci_i2c_master_t master = MASTER_MAX;
 	CAM_DBG(CAM_CCI, "cmd %d", cci_ctrl->cmd);
+
+	if (!cci_dev) {
+		CAM_ERR(CAM_CCI, "CCI_DEV IS NULL");
+		return -EINVAL;
+	}
+
+	if (!cci_ctrl) {
+		CAM_ERR(CAM_CCI, "CCI_CTRL IS NULL");
+		return -EINVAL;
+	}
+
+	master = cci_ctrl->cci_info->cci_i2c_master;
+	if (master >= MASTER_MAX) {
+		CAM_ERR(CAM_CCI, "INVALID MASTER: %d", master);
+		return -EINVAL;
+	}
+
+	if (cci_dev->cci_master_info[master].status < 0) {
+		CAM_WARN(CAM_CCI, "CCI hardware is resetting");
+		return -EAGAIN;
+	}
+	CAM_DBG(CAM_CCI, "master = %d", master);
+
 
 	switch (cci_ctrl->cmd) {
 	case MSM_CCI_INIT:
@@ -1796,7 +1847,6 @@ int32_t cam_cci_core_cfg(struct v4l2_subdev *sd,
 	return rc;
 }
 #ifdef VENDOR_EDIT
-/*add by hongbo.dai@Camera 20181109, for support Laser*/
 #define MAX_WRITE_ARRAY_SIZE   300
 static struct cam_cci_ctrl cci_ctrl_interface;
 static struct cam_sensor_cci_client cci_ctrl_interface_info;

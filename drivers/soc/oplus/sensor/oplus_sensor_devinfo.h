@@ -50,6 +50,8 @@ enum sensor_id {
     OPLUS_CCT,
     OPLUS_CCT_REAR,
     OPLUS_BAROMETER,
+    OPLUS_SARS,
+    OPLUS_LIGHT_REAR,
     SENSORS_NUM
 };
 
@@ -60,6 +62,7 @@ enum sensor_algo_id {
     OPLUS_FP_DISPLAY,
     OPLUS_FREE_FALL,
     OPLUS_CAMERA_PROTECT,
+    OPLUS_MAG_FUSION,
     SENSOR_ALGO_NUM
 };
 
@@ -73,8 +76,11 @@ enum  {
 enum {
     LSM6DSM = 0x01,
     BMI160 = 0x02,
-    LSM6DS3 = 0x04,
+    LSM6DS3_C = 0x04,
     BMI260 = 0x08,
+    LSM6DSO = 0x10,
+    ICM4X6XX = 0x20,
+	ICM4X607 = 0x40,
 };
 
 enum {
@@ -90,11 +96,16 @@ enum {
 
 enum {
     SX9324 = 0x01,
+    SX9331 = 0x02
 };
 
 enum {
     CCT_TCS3408 = 0x01,
     CCT_STK37600 = 0x02
+};
+
+enum {
+    TSL2540 = 0x01,
 };
 
 struct sensor_feature {

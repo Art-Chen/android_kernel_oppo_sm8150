@@ -2,10 +2,10 @@
 # Makefile for kernel Silead Fingerprint drivers.
 #
 
-ifeq ($(CONFIG_OPPO_FINGERPRINT_QCOM),y)
+ifeq ($(CONFIG_OPLUS_FINGERPRINT_QCOM),y)
 obj-y += silead_spi_qcom.o
 ccflags-y += -DBSP_SIL_PLAT_QCOM
-else ifeq ($(CONFIG_OPPO_FINGERPRINT_MTK),y)
+else ifeq ($(CONFIG_OPLUS_FINGERPRINT_MTK),y)
 obj-y += silead_spi_mtk.o
 ccflags-y += -DBSP_SIL_PLAT_MTK
 ccflags-y += -I$(srctree)/drivers/spi/mediatek/$(MTK_PLATFORM)

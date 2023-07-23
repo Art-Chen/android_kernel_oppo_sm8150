@@ -82,7 +82,10 @@ irqreturn_t cam_cci_irq(int irq_num, void *data)
 				FALSE;
 			if (!cci_master_info->status)
 				complete(&cci_master_info->reset_complete);
-			cci_master_info->status = 0;
+			//cci_master_info->status = 0;
+			complete_all(&cci_master_info->rd_done);
+			complete_all(&cci_master_info->th_complete);
+
 		}
 		if (cci_dev->cci_master_info[MASTER_1].reset_pending == TRUE) {
 			cci_master_info = &cci_dev->cci_master_info[MASTER_1];
@@ -90,7 +93,10 @@ irqreturn_t cam_cci_irq(int irq_num, void *data)
 				FALSE;
 			if (!cci_master_info->status)
 				complete(&cci_master_info->reset_complete);
-			cci_master_info->status = 0;
+			//cci_master_info->status = 0;
+			complete_all(&cci_master_info->rd_done);
+			complete_all(&cci_master_info->th_complete);
+
 		}
 	}
 
@@ -223,9 +229,22 @@ irqreturn_t cam_cci_irq(int irq_num, void *data)
 	}
 	if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_ERROR_BMSK) {
 		cci_dev->cci_master_info[MASTER_0].status = -EINVAL;
-		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_NACK_ERROR_BMSK)
-			CAM_ERR(CAM_CCI, "Base:%pK, M0 NACK ERROR: 0x%x",
+		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_Q0_NACK_ERROR_BMSK) {
+			CAM_ERR(CAM_CCI, "Base:%pK, M0_Q0 NACK ERROR: 0x%x",
 				base, irq_status0);
+			complete_all(&cci_dev->cci_master_info[MASTER_0]
+			.report_q[QUEUE_0]);
+			reinit_completion(&cci_dev->cci_master_info[MASTER_0]
+			.report_q[QUEUE_0]);
+		}
+		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_Q1_NACK_ERROR_BMSK) {
+			CAM_ERR(CAM_CCI, "Base:%pK, M0_Q1 NACK ERROR: 0x%x",
+				base, irq_status0);
+			complete_all(&cci_dev->cci_master_info[MASTER_0]
+			.report_q[QUEUE_1]);
+			reinit_completion(&cci_dev->cci_master_info[MASTER_0]
+			.report_q[QUEUE_1]);
+		}
 		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_Q0Q1_ERROR_BMSK)
 			CAM_ERR(CAM_CCI,
 			"Base:%pK, M0 QUEUE_OVER/UNDER_FLOW OR CMD ERR: 0x%x",
@@ -238,14 +257,27 @@ irqreturn_t cam_cci_irq(int irq_num, void *data)
 	}
 	if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M1_ERROR_BMSK) {
 		cci_dev->cci_master_info[MASTER_1].status = -EINVAL;
-		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_NACK_ERROR_BMSK)
-			CAM_ERR(CAM_CCI, "Base:%pK, M1 NACK ERROR: 0x%x",
+		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M1_Q0_NACK_ERROR_BMSK) {
+			CAM_ERR(CAM_CCI, "Base:%pK, M1_Q0 NACK ERROR: 0x%x",
+			base, irq_status0);
+			complete_all(&cci_dev->cci_master_info[MASTER_1]
+			.report_q[QUEUE_0]);
+			reinit_completion(&cci_dev->cci_master_info[MASTER_1]
+			.report_q[QUEUE_0]);
+		}
+		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M1_Q1_NACK_ERROR_BMSK) {
+			CAM_ERR(CAM_CCI, "Base:%pK, M1_Q1 NACK ERROR: 0x%x",
 				base, irq_status0);
-		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_Q0Q1_ERROR_BMSK)
+			complete_all(&cci_dev->cci_master_info[MASTER_1]
+			.report_q[QUEUE_1]);
+			reinit_completion(&cci_dev->cci_master_info[MASTER_1]
+			.report_q[QUEUE_1]);
+		}
+		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M1_Q0Q1_ERROR_BMSK)
 			CAM_ERR(CAM_CCI,
 			"Base:%pK, M1 QUEUE_OVER_UNDER_FLOW OR CMD ERROR:0x%x",
 				base, irq_status0);
-		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M0_RD_ERROR_BMSK)
+		if (irq_status0 & CCI_IRQ_STATUS_0_I2C_M1_RD_ERROR_BMSK)
 			CAM_ERR(CAM_CCI,
 				"Base:%pK, M1 RD_OVER/UNDER_FLOW ERROR: 0x%x",
 				base, irq_status0);

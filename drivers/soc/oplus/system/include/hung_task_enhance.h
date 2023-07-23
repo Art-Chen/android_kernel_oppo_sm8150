@@ -18,7 +18,7 @@ extern int sysctl_hung_task_maxiowait_count;
 static int five = 5;
 #endif
 
-#ifdef CONFIG_OPLUS_FEATURE_HUNG_TASK_ENHANCE
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_HUNG_TASK_ENHANCE)
 void io_check_hung_detection(struct task_struct *t, unsigned long timeout, unsigned int *iowait_count, bool *show_lock, bool *call_panic);
 void io_block_panic(unsigned int *iowait_count, unsigned int sys_mamxiowait_count);
 #else

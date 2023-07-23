@@ -5,7 +5,6 @@
 ** Description : oppo aod feature
 ** Version : 1.0
 ** Date : 2020/04/23
-** Author : Qianxu@MM.Display.LCD Driver
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -14,6 +13,7 @@
 
 #include "dsi_defs.h"
 #include "oppo_aod.h"
+#include <drm/drm_mipi_dsi.h>
 
 int aod_light_mode = 0;
 DEFINE_MUTEX(oppo_aod_light_mode_lock);
@@ -31,13 +31,22 @@ int oppo_update_aod_light_mode_unlock(struct dsi_panel *panel)
 {
 	int rc = 0;
 	enum dsi_cmd_set_type type;
+	int bl = 0;
+	struct mipi_dsi_device *mipi_device;
+	mipi_device = &panel->mipi_device;
 
-	if (aod_light_mode == 1)
+	if (aod_light_mode == 1) {
 		type = DSI_CMD_AOD_LOW_LIGHT_MODE;
-	else
+		bl = 27;
+	} else {
 		type = DSI_CMD_AOD_HIGH_LIGHT_MODE;
+		bl = 137;
+	}
 
-	rc = dsi_panel_tx_cmd_set(panel, type);
+	if (!strcmp(panel->oppo_priv.vendor_name, "S6E3HC2"))
+		rc = mipi_dsi_dcs_set_display_brightness(mipi_device, bl);
+	else
+		rc = dsi_panel_tx_cmd_set(panel, type);
 	if (rc) {
 		pr_err("[%s] failed to send DSI_CMD_AOD_LIGHT_MODE cmds, rc=%d\n",
 		       panel->name, rc);
@@ -47,7 +56,6 @@ int oppo_update_aod_light_mode_unlock(struct dsi_panel *panel)
 }
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 extern bool is_oppo_display_aod_mode(void);
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 int oppo_update_aod_light_mode(void)
@@ -79,7 +87,6 @@ int oppo_update_aod_light_mode(void)
 	mutex_lock(&display->panel->panel_lock);
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	if (display->panel->oppo_priv.is_aod_ramless &&
 			!is_oppo_display_aod_mode()) {
 		pr_err("not support update aod_light_mode at non-aod mode\n");

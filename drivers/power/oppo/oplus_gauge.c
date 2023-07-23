@@ -5,11 +5,9 @@
 *              Manage all charger IC and define abstarct function flow.
 * Version    : 1.0
 * Date       : 2015-06-22
-* Author     : fanhui@PhoneSW.BSP
 *            : Fanhong.Kong@ProDrv.CHG
 * ------------------------------ Revision History: --------------------------------
 * <version>           <date>                <author>                          <desc>
-* Revision 1.0        2015-06-22       fanhui@PhoneSW.BSP            Created for new architecture
 * Revision 1.0        2015-06-22       Fanhong.Kong@ProDrv.CHG       Created for new architecture
 ***********************************************************************************/
 
@@ -566,6 +564,30 @@ int oplus_gauge_get_prev_batt_fcc(void)
 		return 0;
 	} else {
 		return g_gauge_chip->gauge_ops->get_prev_batt_fcc();
+	}
+}
+
+int oplus_gauge_protect_check(void)
+{
+	if (!g_gauge_chip) {
+		return true;
+	} else {
+		if (g_gauge_chip->gauge_ops && g_gauge_chip->gauge_ops->protect_check) {
+			return g_gauge_chip->gauge_ops->protect_check();
+		}
+		return true;
+	}
+}
+
+bool oplus_gauge_afi_update_done(void)
+{
+	if (!g_gauge_chip) {
+		return true;
+	} else {
+		if (g_gauge_chip->gauge_ops && g_gauge_chip->gauge_ops->afi_update_done) {
+			return g_gauge_chip->gauge_ops->afi_update_done();
+		}
+		return true;
 	}
 }
 

@@ -32,6 +32,15 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "trigger_sw";
 		qcom,mdss-dsi-reset-sequence = <1 5>, <0 1>, <1 5>;
+		//#ifdef OPLUS_BUG_STABILITY
+		oplus,lcd-delay-disp-en-gpio = <0>;
+		oplus,lcd-delay-reset-gpio = <12000>;
+		oplus,lcd-delay-mode-sel-gpio = <0>;
+		oplus,lcd-delay-set-pinctrl-state = <0>;
+		oplus,lcd-delay-enable-regulator = <0>;
+		oppo,mdss-dsi-vendor-name = "S6E3FC2X01";
+		oppo,mdss-dsi-manufacture = "samsung1024";
+		//#endif /* OPLUS_BUG_STABILITY */
 		qcom,bl-update-flag = "delay_until_first_frame";
 		qcom,mdss-dsi-bl-max-level = <1023>;
 		qcom,mdss-brightness-max-level = <1023>;
@@ -50,6 +59,29 @@
 			16000 13250 34500 7500 3000>;
 		qcom,mdss-dsi-panel-peak-brightness = <4300000>;
 		qcom,mdss-dsi-panel-blackness-level = <1023>;
+		oppo,dsi-dc-brightness = <0 0xff>,
+					<1 0xfb>,
+					<2 0xfb>,
+					<3 0xfb>,
+					<4 0xfa>,
+					<5 0xf9>,
+					<6 0xf7>,
+					<8 0xf5>,
+					<10 0xf3>,
+					<15 0xf0>,
+					<20 0xea>,
+					<30 0xe0>,
+					<45 0xd0>,
+					<70 0xbc>,
+					<100 0x98>,
+					<120 0x80>,
+					<140 0x70>,
+					<160 0x58>,
+					<180 0x48>,
+					<200 0x30>,
+					<220 0x20>,
+					<240 0x10>,
+					<260 0x00>;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
@@ -298,17 +330,17 @@
 					39 01 00 00 00 00 03 B3 00 C0
 					39 01 00 00 00 00 03 F0 A5 A5];
 				qcom,mdss-dsi-seed-1-command = [
-					39 01 00 00 00 00 02 81 90  /* CRC mode enable */
-					39 01 00 00 00 00 03 F0 5A 5A
-					39 01 00 00 00 00 02 B0 02
-					39 01 00 00 00 00 16 B1 C0 0C 05 39 D0 16 04 09 E0 48 E8 CC E4 18 E0 EA E8 1D FF FF FF  /* CRC LUT */
-					39 01 00 00 00 00 03 B1 00 00
-					39 01 00 00 00 00 03 F0 A5 A5
-					39 01 00 00 00 00 03 F0 5A 5A  /* Seed Tcs On */
-					39 01 00 00 00 00 02 B0 23
-					39 01 00 00 00 00 02 B3 91
-					39 01 00 00 00 00 02 83 80
-					39 01 00 00 00 00 03 B3 00 C0
+					39 00 00 00 00 00 02 81 90  /* CRC mode enable */
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 02
+					39 00 00 00 00 00 16 B1 C0 0C 05 39 D0 16 04 09 E0 48 E8 CC E4 18 E0 EA E8 1D FF FF FF  /* CRC LUT */
+					39 00 00 00 00 00 03 B1 00 00
+					39 00 00 00 00 00 03 F0 A5 A5
+					39 00 00 00 00 00 03 F0 5A 5A  /* Seed Tcs On */
+					39 00 00 00 00 00 02 B0 23
+					39 00 00 00 00 00 02 B3 91
+					39 00 00 00 00 00 02 83 80
+					39 00 00 00 00 00 03 B3 00 C0
 					39 01 00 00 00 00 03 F0 A5 A5];
 				qcom,mdss-dsi-seed-dcip3-command = [
 					39 01 00 00 00 00 02 81 90  /* CRC mode enable */

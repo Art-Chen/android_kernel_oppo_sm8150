@@ -22,7 +22,7 @@
 #include <linux/miscdevice.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 
 /*#define FP_SPI_DEBUG*/
 #define FP_SPI_DEBUG

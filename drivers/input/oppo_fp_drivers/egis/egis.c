@@ -1130,8 +1130,8 @@ static int __init egis512_init(void)
     int sim_val = 1;
     struct device_node *node = NULL;
 
-    node = of_find_compatible_node(NULL, NULL, "oppo,fp_common");
-	sim_gpio = of_get_named_gpio(node, "oppo,fp-id0", 0);
+    node = of_find_compatible_node(NULL, NULL, "oplus,fp_common");
+	sim_gpio = of_get_named_gpio(node, "oplus,fp-id0", 0);
 	sim_val = __gpio_get_value(sim_gpio);
 */
 	sim_val = g_fingerprint;

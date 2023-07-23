@@ -12,8 +12,8 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <soc/oppo/oppo_project.h>
-#include <soc/oppo/boot_mode.h>
+#include <soc/oplus/system/oplus_project.h>
+#include <soc/oplus/system/boot_mode.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
@@ -363,7 +363,7 @@ static int op_rf_cable_probe(struct platform_device *pdev)
     struct device_node *np = dev->of_node;
     struct rf_cable_data *rf_data = NULL;
     unsigned int len = (sizeof(struct rf_info_type) + 3) & (~0x3);
-    struct proc_dir_entry *oppo_rf = NULL;
+    struct proc_dir_entry *oplus_rf = NULL;
     int i;
 
     pr_err("%s enter!\n", __func__);
@@ -435,18 +435,18 @@ static int op_rf_cable_probe(struct platform_device *pdev)
         goto exit;
     }
 
-    oppo_rf = proc_mkdir("oppo_rf", NULL);
-    if (!oppo_rf) {
-        pr_err("can't create oppo_rf proc.\n");
+    oplus_rf = proc_mkdir("oplus_rf", NULL);
+    if (!oplus_rf) {
+        pr_err("can't create oplus_rf proc.\n");
         goto exit;
     }
 
     if (rf_data->rf_cable_support_num) {
-        proc_create_data("rf_cable", S_IRUGO, oppo_rf, &cable_proc_fops_cable, rf_data);
+        proc_create_data("rf_cable", S_IRUGO, oplus_rf, &cable_proc_fops_cable, rf_data);
     }
 
     if (rf_data->rf_pds_support_num) {
-        proc_create_data("rf_pds", S_IRUGO, oppo_rf, &cable_proc_fops_pds, rf_data);
+        proc_create_data("rf_pds", S_IRUGO, oplus_rf, &cable_proc_fops_pds, rf_data);
     }
 
     pr_err("%s: probe ok, rf_cable, SMEM_RF_INFO:%d, sts:%d, "\
@@ -499,7 +499,7 @@ static int op_rf_cable_remove(struct platform_device *pdev)
 
     if (rf_data) {
         pr_err("%s test 1111!\n", __func__);
-        remove_proc_subtree("oppo_rf", NULL);
+        remove_proc_subtree("oplus_rf", NULL);
         //wakeup_source_trash(&rf_data->cable_ws);
     }
     pr_err("%s enter!\n", __func__);

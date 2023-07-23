@@ -32,6 +32,17 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "trigger_sw";
 		qcom,mdss-dsi-reset-sequence = <1 5>, <0 10>, <1 10>;
+		//#ifdef OPLUS_BUG_STABILITY
+		qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
+		oplus,lcd-delay-vci-gpio = <5000>;
+		oplus,lcd-delay-disp-en-gpio = <0>;
+		oplus,lcd-delay-reset-gpio = <12000>;
+		oplus,lcd-delay-mode-sel-gpio = <5000>;
+		oplus,lcd-delay-set-pinctrl-state = <1000>;
+		oplus,lcd-delay-enable-regulator = <0>;
+		oppo,mdss-dsi-vendor-name = "SOFEF03F_M";
+		oppo,mdss-dsi-manufacture = "samsung1024";
+		//#endif /* OPLUS_BUG_STABILITY */
 		qcom,bl-update-flag = "delay_until_first_frame";
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
 		qcom,mdss-dsi-bl-min-level = <6>;
@@ -53,23 +64,6 @@
 			16000 13250 34500 7500 3000>;
 		qcom,mdss-dsi-panel-peak-brightness = <4300000>;
 		qcom,mdss-dsi-panel-blackness-level = <1023>;
-		oplus,is_19081_lcd;
-		oplus,osc-support;
-		oplus,mdss-dsi-osc-clk-mode0-rate = <103600>;
-		oplus,mdss-dsi-osc-clk-mode1-rate = <101600>;
-		oppo,mdss-dsi-vendor-name = "SOFEF03F_M";
-		oppo,mdss-dsi-manufacture = "samsung1024";
-		//#ifdef OPLUS_BUG_STABILITY
-		/* xupengcheng@MULTIMEDIA.DISPLAY.LCD, 2020/10/28, add for 19081 LCD */
-		qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
-		oplus,lcd-delay-vci-gpio = <1000>;
-		oplus,lcd-delay-disp-en-gpio = <0>;
-		oplus,lcd-delay-reset-gpio = <12000>;
-		oplus,lcd-delay-mode-sel-gpio = <1000>;
-		oplus,lcd-delay-set-pinctrl-state = <1000>;
-		oplus,lcd-delay-enable-regulator = <0>;
-		oplus,lcd-delay-lp11-state = <10000>;
-		//#endif /* OPLUS_BUG_STABILITY */
 		oppo,dsi-dc-brightness = <0 0xff>,
 					<1 0xfb>,
 					<2 0xfb>,
@@ -119,14 +113,14 @@
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
 				qcom,mdss-dsi-v-bottom-border = <0>;
-				qcom,mdss-dsi-panel-jitter = <0x8 0x1>;
+				qcom,mdss-dsi-panel-jitter = <0x4 0x1>;
 				qcom,esd-check-enabled;
 				qcom,mdss-dsi-panel-status-check-mode = "reg_read";
 				qcom,mdss-dsi-panel-status-command = [06 01 00 01 05 00 02 0A 00];
 				qcom,mdss-dsi-panel-status-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-panel-status-value = <0x9C>;
 				qcom,mdss-dsi-panel-status-read-length = <1>;
-				oppo,fod-on-vblank = <1>;
+				oppo,fod-on-vblank = <2>;
 				oppo,fod-off-vblank = <0>;
 
 				qcom,mdss-dsi-timing-switch-command = [
@@ -484,26 +478,6 @@
 					39 01 00 00 00 00 02 B2 80
 					39 01 00 00 00 00 03 F0 A5 A5
 				];
-				qcom,mdss-dsi-osc-clk-mode0-command = [
-					/* OSC Setting 103.6 */
-					39 01 00 00 0A 00 03 F0 5A 5A
-					39 01 00 00 00 00 03 FC 5A 5A
-					39 01 00 00 00 00 02 B0 01
-					39 01 00 00 00 00 04 E4 A5 68 2C
-					39 01 00 00 00 00 12 E9 11 75 A5 68 2C 93 49 1E 93 49 1E 00 32 32 A0 02 02
-					39 01 00 00 00 00 03 FC A5 A5
-					39 01 00 00 0A 00 03 F0 A5 A5
-				];
-				qcom,mdss-dsi-osc-clk-mode1-command = [
-					/* OSC Setting 101.6 */
-					39 01 00 00 0A 00 03 F0 5A 5A
-					39 01 00 00 00 00 03 FC 5A 5A
-					39 01 00 00 00 00 02 B0 01
-					39 01 00 00 00 00 04 E4 A5 68 2C
-					39 01 00 00 00 00 12 E9 11 75 A5 68 2C 96 2F 58 96 2F 58 00 32 32 A0 02 02
-					39 01 00 00 00 00 03 FC A5 A5
-					39 01 00 00 0A 00 03 F0 A5 A5
-				];
 				qcom,mdss-dsi-hdr10-seed-command = [
 					/* Seed CRC mode enable */
 					39 01 00 00 00 00 02 81 92
@@ -537,8 +511,6 @@
 				qcom,mdss-dsi-panel-id1-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-panel-id2-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-panel-read-register-close-command-state = "dsi_lp_mode";
-				qcom,mdss-dsi-osc-clk-mode0-command-state = "dsi_lp_mode";
-				qcom,mdss-dsi-osc-clk-mode1-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-hdr10-seed-command-state =  "dsi_lp_mode";
 				qcom,panel-roi-alignment=<540 30 540 30 540 30>;
 				qcom,compression-mode = "dsc";
@@ -581,7 +553,7 @@
 				qcom,mdss-dsi-panel-status-command-state = "dsi_hs_mode";
 				qcom,mdss-dsi-panel-status-value = <0x9C>;
 				qcom,mdss-dsi-panel-status-read-length = <1>;
-				oppo,fod-on-vblank = <1>;
+				oppo,fod-on-vblank = <2>;
 				oppo,fod-off-vblank = <0>;
 				qcom,mdss-dsi-timing-switch-command = [
 					39 01 00 00 00 00 03 F0 5A 5A           /* Dimming Setting */
@@ -767,7 +739,7 @@
 					/* Dimming Delay control */
 					39 01 00 00 00 00 03 F0 5A 5A
 					15 01 00 00 00 00 02 B0 01
-					15 01 00 00 00 00 02 B7 5B				/* 0x5B : DLY OFF */
+					15 01 00 00 08 00 02 B7 5B				/* 0x5B : DLY OFF */
 					39 01 00 00 00 00 03 F0 A5 A5
 					/* Dimming Speed Control */
 					39 01 00 00 00 00 03 F0 5A 5A
@@ -888,18 +860,18 @@
 					39 01 00 00 00 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-seed-1-command = [					/* Seed CRC mode enable */
-					39 01 00 00 00 00 02 81 90
-					39 01 00 00 00 00 03 F0 5A 5A
-					39 01 00 00 00 00 02 B0 01
-					39 01 00 00 00 00 16 B1 A8 0A 05 41 D0 14 0A 06 AF 56 EE D5 BE 13 BD E6 E4 1C FF FF FF  /* CRC LUT1(sRGB) */
-					39 01 00 00 00 00 02 B1 00
-					39 01 00 00 00 00 03 F0 A5 A5
+					39 00 00 00 00 00 02 81 90
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 01
+					39 00 00 00 00 00 16 B1 A8 0A 05 41 D0 14 0A 06 AF 56 EE D5 BE 13 BD E6 E4 1C FF FF FF  /* CRC LUT1(sRGB) */
+					39 00 00 00 00 00 02 B1 00
+					39 00 00 00 00 00 03 F0 A5 A5
 					/* Seed Tcs On */
-					39 01 00 00 00 00 03 F0 5A 5A
-					39 01 00 00 00 00 02 B0 67
-					39 01 00 00 00 00 02 B3 82
-					39 01 00 00 00 00 02 83 00
-					39 01 00 00 00 00 02 B2 80
+					39 00 00 00 00 00 03 F0 5A 5A
+					39 00 00 00 00 00 02 B0 67
+					39 00 00 00 00 00 02 B3 82
+					39 00 00 00 00 00 02 83 00
+					39 00 00 00 00 00 02 B2 80
 					39 01 00 00 00 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-seed-dcip3-command = [
@@ -916,26 +888,6 @@
 					39 01 00 00 00 00 02 83 00
 					39 01 00 00 00 00 02 B2 80
 					39 01 00 00 00 00 03 F0 A5 A5
-				];
-				qcom,mdss-dsi-osc-clk-mode0-command = [
-					/* OSC Setting 103.6 */
-					39 01 00 00 0A 00 03 F0 5A 5A
-					39 01 00 00 00 00 03 FC 5A 5A
-					39 01 00 00 00 00 02 B0 01
-					39 01 00 00 00 00 04 E4 A5 68 2C
-					39 01 00 00 00 00 12 E9 11 75 A5 68 2C 93 49 1E 93 49 1E 00 32 32 A0 02 02
-					39 01 00 00 00 00 03 FC A5 A5
-					39 01 00 00 0A 00 03 F0 A5 A5
-				];
-				qcom,mdss-dsi-osc-clk-mode1-command = [
-					/* OSC Setting 101.6 */
-					39 01 00 00 0A 00 03 F0 5A 5A
-					39 01 00 00 00 00 03 FC 5A 5A
-					39 01 00 00 00 00 02 B0 01
-					39 01 00 00 00 00 04 E4 A5 68 2C
-					39 01 00 00 00 00 12 E9 11 75 A5 68 2C 96 2F 58 96 2F 58 00 32 32 A0 02 02
-					39 01 00 00 00 00 03 FC A5 A5
-					39 01 00 00 0A 00 03 F0 A5 A5
 				];
 				qcom,mdss-dsi-hdr10-seed-command = [
 					/* Seed CRC mode enable */
@@ -972,8 +924,6 @@
 				qcom,mdss-dsi-panel-id1-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-panel-id2-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-panel-read-register-close-command-state = "dsi_lp_mode";
-				qcom,mdss-dsi-osc-clk-mode0-command-state = "dsi_lp_mode";
-				qcom,mdss-dsi-osc-clk-mode1-command-state = "dsi_lp_mode";
 				qcom,mdss-dsi-hdr10-seed-command-state =  "dsi_lp_mode";
 				qcom,panel-roi-alignment=<540 30 540 30 540 30>;
 				qcom,compression-mode = "dsc";

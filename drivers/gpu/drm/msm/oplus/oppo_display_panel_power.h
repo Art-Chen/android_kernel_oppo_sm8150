@@ -5,7 +5,6 @@
 ** Description : oppo display panel power control
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -23,6 +22,7 @@
 #include "dsi_clk.h"
 #include "dsi_pwr.h"
 #include "sde_dbg.h"
+#include "oppo_dsi_support.h"
 
 struct panel_vol_set {
 	uint32_t panel_id;
@@ -55,5 +55,7 @@ typedef struct panel_voltage_bak {
 
 int oppo_display_panel_set_pwr(void *data);
 int oppo_display_panel_get_pwr(void *data);
-
+int oppo_display_panel_get_power_status(void *data);
+int oppo_display_panel_set_power_status(void *data);
+int __oppo_display_set_power_status(int status);
 #endif /* _OPPO_DISPLAY_PANEL_POWER_H_ */

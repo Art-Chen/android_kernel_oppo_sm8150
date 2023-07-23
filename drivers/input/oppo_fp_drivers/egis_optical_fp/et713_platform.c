@@ -30,7 +30,7 @@
 #include "../fp_id.h"
 #endif
 #include <linux/pm_wakeup.h>
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 #include "et713.h"
 //#include "navi_input.h"
 

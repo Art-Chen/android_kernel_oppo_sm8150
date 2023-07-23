@@ -26,19 +26,21 @@
 #include <dsp/q6common.h>
 #include <dsp/q6core.h>
 #include <dsp/msm-audio-event-notify.h>
+#ifdef OPLUS_FEATURE_MM_ULTRASOUND
+#include <dsp/apr_elliptic.h>
+//#end add
+#endif
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
 #include "q6afecal-hwdep.h"
 
 #ifdef OPLUS_FEATURE_ADSP_RECOVERY
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2434874, 2020/08/14, Add for workaround fix adsp stuck issue*/
 #include <linux/module.h>
 #include <soc/qcom/subsystem_restart.h>
 
 #define ADSP_READY_RETRY_NUM 5
 #endif /* OPLUS_FEATURE_ADSP_RECOVERY */
 #ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14, Add for tfa98xx vi feedback*/
 #define AFE_MODULE_ID_TFADSP_RX		(0x1000B911)
 #define AFE_MODULE_ID_TFADSP_TX		(0x1000B912)
 #define AFE_PARAM_ID_TFADSP_TX_SET_ENABLE		(0x1000B920)
@@ -194,13 +196,13 @@ struct afe_ctl {
 	uint32_t initial_cal;
 	uint32_t v_vali_flag;
 /*#ifdef OPLUS_ARCH_EXTENDS*/
-/* Wan.li@MULTIMEDIA.AUDIODRIVER.CODEC, 2020/09/27, Add for Max98937 */
 #ifdef CONFIG_SND_SOC_MAX98937
+#ifndef OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL
 	uint8_t *dsm_payload;
+#endif
 #endif
 /*#endif*/   // OPLUS_ARCH_EXTENDS
 	#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14, Add for tfa98xx vi feedback*/
 	struct rtac_cal_block_data tfa_cal;
 	atomic_t tfa_state;
 	#endif /* OPLUS_FEATURE_TFA98XX_VI_FEEDBACK */
@@ -226,7 +228,6 @@ static int afe_get_cal_hw_delay(int32_t path,
 static int remap_cal_data(struct cal_block_data *cal_block, int cal_index);
 
 #ifdef OPLUS_FEATURE_ADSP_RECOVERY
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2434874, 2020/08/14 Add for workaround fix adsp stuck issue*/
 extern bool oem_is_fulldump(void);
 static bool (*is_fulldump_on_func)(void);
 
@@ -500,8 +501,7 @@ static int32_t sp_make_afe_callback(uint32_t opcode, uint32_t *payload,
 				struct afe_sp_rx_tmax_xmax_logging_param);
 		data_dest = (u32 *) &this_afe.xt_logging_resp;
 		break;
-#ifdef OPLUS_ARCH_EXTENDS
-/*Wan.li@MULTIMEDIA.AUDIODRIVER.CODEC, 2020/09/27, Add for Max98937*/
+#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 #ifdef CONFIG_SND_SOC_MAX98937
     case AFE_PARAM_ID_DSM_CFG:
     case AFE_PARAM_ID_DSM_INFO:
@@ -686,7 +686,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			return 0;
 
 		#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-		/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14,  Modify for tfa98xx vi feedback*/
         if (smartpa_id == 1) {
 		    param_id = (data->opcode == AFE_PORT_CMDRSP_GET_PARAM_V3) ?
 		                   payload[3] :
@@ -714,7 +713,6 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 						    data->payload_size);
 		} else {
 			#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-			/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14,  Add for tfa98xx vi feedback*/
             if (smartpa_id == 1) {
 			    if (atomic_read(&this_afe.tfa_state) == 1 &&
 				data->payload_size == sizeof(uint32_t)) {
@@ -741,6 +739,14 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			wake_up(&this_afe.wait[data->token]);
 		else
 			return -EINVAL;
+#ifdef OPLUS_FEATURE_MM_ULTRASOUND
+	} else if (data->opcode == ULTRASOUND_OPCODE) {
+		if (NULL != data->payload)
+			elliptic_process_apr_payload(data->payload);
+		else
+			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
+//#end add
+#endif
 	} else if (data->opcode == AFE_EVENT_MBHC_DETECTION_SW_WA) {
 		msm_aud_evt_notifier_call_chain(SWR_WAKE_IRQ_EVENT, NULL);
 	} else if (data->opcode ==
@@ -1769,8 +1775,7 @@ fail_cmd:
 	return ret;
 }
 
-#ifdef OPLUS_ARCH_EXTENDS
-/*Wan.li@MULTIMEDIA.AUDIODRIVER.CODEC, 2020/09/27, Add for Max98937*/
+#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 #ifdef CONFIG_SND_SOC_MAX98937
 static int afe_dsm_set_params(int port, int module_id, int param_id, uint8_t *payload, int size)
 {
@@ -1952,7 +1957,6 @@ static int afe_spk_prot_prepare(int src_port, int dst_port, int param_id,
 		param_info.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_EX_VI;
 		break;
 	#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14,  Add for tfa98xx vi feedback*/
 	case AFE_PARAM_ID_TFADSP_RX_CFG:
 	case AFE_PARAM_ID_TFADSP_RX_SET_BYPASS:
 	case AFE_PARAM_ID_TFADSP_RX_SET_HAPTIC_GAIN:
@@ -2030,6 +2034,17 @@ fail_idx:
 	kfree(config);
 	return ret;
 }
+#ifdef OPLUS_FEATURE_MM_ULTRASOUND
+afe_ultrasound_state_t elus_afe = {
+	.ptr_apr= &this_afe.apr,
+	.ptr_status= &this_afe.status,
+	.ptr_state= &this_afe.state,
+	.ptr_wait= this_afe.wait,
+	.timeout_ms= TIMEOUT_MS,
+};
+EXPORT_SYMBOL(elus_afe);
+//#end add
+#endif
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
@@ -2634,8 +2649,11 @@ static struct cal_block_data *afe_find_cal(int cal_index, int port_id)
 				 __func__, cal_block->cal_data.size);
 			goto exit;
 		#ifdef OPLUS_ARCH_EXTENDS
-		/* Ming.Liu@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/17, add for speaker protection for voip */
+#ifdef OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL
+		} else if ((afe_port_index == IDX_AFE_PORT_ID_QUATERNARY_MI2S_RX)
+#else
 		} else if ((afe_port_index == IDX_AFE_PORT_ID_TERTIARY_MI2S_RX)
+#endif
 			&& (afe_cal_info->acdb_id == this_afe.dev_acdb_id[afe_port_index])) {
 			pr_debug("%s: Because afe_port_index is %d, so cal block is a match, size is %zd\n",
 				__func__, cal_block->cal_data.size);
@@ -2684,7 +2702,7 @@ static int send_afe_cal_type(int cal_index, int port_id)
 				this_afe.cal_data[cal_index]);
 
 	if (cal_block == NULL || cal_utils_is_cal_stale(cal_block)) {
-		pr_err_ratelimited("%s cal_block not found!!\n", __func__);
+		pr_err("%s cal_block not found!!\n", __func__);
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -5075,11 +5093,14 @@ int afe_get_port_index(u16 port_id)
 	case RT_PROXY_PORT_002_TX:
 		return IDX_RT_PROXY_PORT_002_TX;
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	case AFE_LOOPBACK_TX:
 		return IDX_AFE_LOOPBACK_TX;
 #endif /* OPLUS_ARCH_EXTENDS */
+#ifdef OPLUS_FEATURE_MM_ULTRASOUND
+	case AFE_PORT_ID_PSEUDOPORT_01:
+		return IDX_AFE_PORT_ID_PSEUDOPORT_01;
+//#end add
+#endif
 	default:
 		pr_err("%s: port 0x%x\n", __func__, port_id);
 		return -EINVAL;
@@ -7194,6 +7215,10 @@ int afe_validate_port(u16 port_id)
 	case AFE_PORT_ID_RX_CODEC_DMA_RX_7:
 	case RT_PROXY_PORT_002_RX:
 	case RT_PROXY_PORT_002_TX:
+#ifdef OPLUS_FEATURE_MM_ULTRASOUND
+	case AFE_PORT_ID_PSEUDOPORT_01:
+	//#end add
+#endif
 	{
 		ret = 0;
 		break;
@@ -7538,7 +7563,6 @@ int afe_set_lpass_clk_cfg(int index, struct afe_clk_set *cfg)
 	ret = q6afe_svc_pack_and_set_param_in_band(index, param_hdr,
 						   (u8 *) cfg);
 	#ifndef OPLUS_FEATURE_ADSP_RECOVERY
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2434874, 2020/08/14 Modify for workaround fix adsp stuck issue*/
 	if (ret < 0) {
 		pr_err_ratelimited("%s: AFE clk cfg failed with ret %d\n",
 				__func__, ret);
@@ -8828,7 +8852,6 @@ static void afe_release_uevent_data(struct kobject *kobj)
 }
 
 #ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14,  Add for tfa98xx vi feedback*/
 int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
 	int32_t result = 0, port_id = AFE_PORT_ID_TFADSP_RX;
@@ -9109,7 +9132,6 @@ int __init afe_init(void)
 void afe_exit(void)
 {
 	#ifdef OPLUS_FEATURE_TFA98XX_VI_FEEDBACK
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/08/14,  Add for tfa98xx vi feedback*/
 	afe_unmap_rtac_block(&this_afe.tfa_cal.map_data.map_handle);
 	#endif /* OPLUS_FEATURE_TFA98XX_VI_FEEDBACK */
 

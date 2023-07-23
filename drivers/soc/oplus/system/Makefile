@@ -18,3 +18,4 @@ endif
 obj-$(CONFIG_OPLUS_OPPO_GPIO)    +=  oppo_gpio/
 #endif /* OPLUS_FEATURE_ESIM */
 
+obj-$(CONFIG_OPLUS_FEATURE_QCOM_PMICWD)     += qcom_pmicwd/

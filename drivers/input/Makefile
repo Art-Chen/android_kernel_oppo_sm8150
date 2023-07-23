@@ -34,6 +34,6 @@ obj-$(CONFIG_RMI4_CORE)		+= rmi4/
 obj-$(CONFIG_SMI130)   += sensors/smi130/
 #ifdef VENDOR_EDIT
 #zoulian@BSP.Fingerprint.Basic, 2020/08/04, add for fingerprint driver
-obj-$(CONFIG_OPPO_FINGERPRINT)  += oppo_fp_drivers/
-obj-$(CONFIG_OPPO_FINGERPRINT)  += oppo_secure_common/
+obj-$(CONFIG_OPLUS_FINGERPRINT)  += oppo_fp_drivers/
+obj-$(CONFIG_OPLUS_FINGERPRINT)  += oplus_secure_common/
 #endif

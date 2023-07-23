@@ -74,6 +74,7 @@ obj-$(CONFIG_TEST_IRQ_REQUESTER) += irq_requester.o
 #ifdef OPLUS_FEATURE_TP_BASIC
 #Qicai.Gu@BSP.TP, 2020/08/10, modify for rf cable monitor
 obj-$(CONFIG_OPLUS_RF_CABLE_MONITOR)	+= oplus_rf_cable_monitor.o
+obj-$(CONFIG_OPLUS_RF_CABLE_MONITOR)	+= op_ant_detect.o
 #endif
 
 #ifdef OPLUS_FEATURE_CHG_BASIC

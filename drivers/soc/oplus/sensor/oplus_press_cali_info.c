@@ -15,6 +15,7 @@
 
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
+#include <linux/version.h>
 
 extern struct proc_dir_entry *sensor_proc_dir;
 struct oplus_press_cali_data {
@@ -87,10 +88,17 @@ static ssize_t press_offset_write_proc(struct file *file, const char __user *buf
 
     return count;
 }
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+static const struct proc_ops press_offset_fops = {
+        .proc_read = press_offset_read_proc,
+        .proc_write = press_offset_write_proc,
+};
+#else
 static struct file_operations press_offset_fops = {
     .read = press_offset_read_proc,
     .write = press_offset_write_proc,
 };
+#endif
 
 int oplus_press_cali_data_init(void)
 {
@@ -128,7 +136,6 @@ int oplus_press_cali_data_init(void)
         rc = -EFAULT;
         goto exit;
     }
-
     pentry = proc_create("offset", 0666, gdata->proc_oplus_press,
             &press_offset_fops);
 

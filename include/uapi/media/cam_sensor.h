@@ -1,3 +1,6 @@
+#if defined(OP_8150_ADAPT)
+#include "cam_sensor_op.h"
+#else
 #ifndef __UAPI_CAM_SENSOR_H__
 #define __UAPI_CAM_SENSOR_H__
 
@@ -476,55 +479,6 @@ struct cam_flash_query_cap_info {
 	uint32_t    max_duration_flash[CAM_FLASH_MAX_LED_TRIGGERS];
 	uint32_t    max_current_torch[CAM_FLASH_MAX_LED_TRIGGERS];
 } __attribute__ ((packed));
-#ifdef VENDOR_EDIT  //add dpc read for imx471
-#define FD_DFCT_MAX_NUM 5
-#define SG_DFCT_MAX_NUM 299
-
-
-struct sony_dfct_tbl_t {
-	//---- single static defect ----
-	int sg_dfct_num;		// the number of single static defect
-	int sg_dfct_addr[SG_DFCT_MAX_NUM];		// [ u25 ( upper-u13 = x-addr, lower-u12 = y-addr ) ]
-	//---- FD static defect ----
-	int fd_dfct_num;		// the number of FD static defect
-	int fd_dfct_addr[FD_DFCT_MAX_NUM];		// [ u25 ( upper-u13 = x-addr, lower-u12 = y-addr ) ]
-} __attribute__ ((packed));
-#endif
-
-#ifdef VENDOR_EDIT
-/*add by yufeng@camera, 20190618 for write calibration*/
-#define CALIB_DATA_LENGTH         1561
-#define WRITE_DATA_MAX_LENGTH     8
-#define WRITE_DATA_DELAY          5
-
-struct cam_write_eeprom_t {
-    uint32_t cam_id;
-    uint32_t baseAddr;
-    uint32_t calibDataSize;
-    uint32_t isWRP;
-    uint32_t WRPaddr;
-    unsigned char calibData[CALIB_DATA_LENGTH];
-} __attribute__ ((packed));
-
-//add by yufeng@camera, 20190618 for check eeprom data
-#define EEPROM_CHECK_DATA_MAX_SIZE 196
-struct check_eeprom_data_t{
-    uint32_t cam_id;
-    uint32_t startAddr;
-    uint32_t eepromData_checksum;
-} __attribute__ ((packed));
-
-//add by yufeng@camera, 20190618 for write ae sync
-#define AE_SYNC_SIZE 36
-struct cam_write_AE_SYNC_t{
-    uint32_t cam_id;
-    uint32_t baseAddr;
-    uint32_t AESyncSize;
-    uint32_t isWRP;
-    uint32_t WRPaddr;
-    unsigned char AESync[AE_SYNC_SIZE];
-} __attribute__ ((packed));
-#endif
 
 /**
  * struct cam_ir_led_query_cap  :  capabilities info for ir_led
@@ -554,4 +508,26 @@ struct cam_ir_led_set_on_off {
 	uint32_t    pwm_duty_on_ns;
 	uint32_t    pwm_period_ns;
 } __attribute__((packed));
+
+#ifdef VENDOR_EDIT
+#define FD_DFCT_MAX_NUM 5
+#define SG_DFCT_MAX_NUM 299
+#define FD_DFCT_NUM_ADDR 0x7678
+#define SG_DFCT_NUM_ADDR 0x767A
+#define FD_DFCT_ADDR 0x8B00
+#define SG_DFCT_ADDR 0x8B10
+#define V_ADDR_SHIFT 12
+#define H_DATA_MASK 0xFFF80000
+#define V_DATA_MASK 0x0007FF80
+
+struct sony_dfct_tbl_t {
+	//---- single static defect ----
+	int sg_dfct_num;                         // the number of single static defect
+	int sg_dfct_addr[SG_DFCT_MAX_NUM];       // [ u25 ( upper-u13 = x-addr, lower-u12 = y-addr ) ]
+	//---- FD static defect ----
+	int fd_dfct_num;                         // the number of FD static defect
+	int fd_dfct_addr[FD_DFCT_MAX_NUM];       // [ u25 ( upper-u13 = x-addr, lower-u12 = y-addr ) ]
+} __attribute__ ((packed));
+#endif
+#endif
 #endif

@@ -5,7 +5,6 @@
 ** Description : oppo display panel power control
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -15,6 +14,8 @@
 
 PANEL_VOLTAGE_BAK panel_vol_bak[PANEL_VOLTAGE_ID_MAX] = {{0}, {0}, {2, 0, 1, 2, ""}};
 u32 panel_pwr_vg_base = 0;
+int oppo_request_power_status = OPPO_DISPLAY_POWER_OFF;
+DEFINE_MUTEX(oppo_power_status_lock);
 
 static int oppo_panel_find_vreg_by_name(const char *name)
 {
@@ -221,4 +222,31 @@ int oppo_display_panel_set_pwr(void *data)
 	}
 
 	return rc;
+}
+
+int __oppo_display_set_power_status(int status) {
+	mutex_lock(&oppo_power_status_lock);
+	if(status != oppo_request_power_status) {
+		oppo_request_power_status = status;
+		printk(KERN_INFO "%s oppo_display_set_power_status = %d\n", __func__, status);
+	}
+	mutex_unlock(&oppo_power_status_lock);
+	return 0;
+}
+
+int oppo_display_panel_get_power_status(void *data) {
+	uint32_t *power_status = data;
+
+	printk(KERN_DEBUG "oppo_display_get_power_status = %d\n", get_oppo_display_power_status());
+	(*power_status) = get_oppo_display_power_status();
+
+	return 0;
+}
+
+int oppo_display_panel_set_power_status(void *data) {
+	uint32_t *temp_save = data;
+
+	__oppo_display_set_power_status((*temp_save));
+
+	return 0;
 }

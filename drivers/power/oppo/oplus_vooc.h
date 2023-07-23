@@ -5,11 +5,9 @@
 *             Manage all charger IC and define abstarct function flow.
 * Version   : 1.0
 * Date      : 2015-05-22
-* Author    : fanhui@PhoneSW.BSP
 *           : Fanhong.Kong@ProDrv.CHG
 * ------------------------------ Revision History: --------------------------------
 * <version>           <date>                <author>                               <desc>
-* Revision 1.0        2015-05-22        fanhui@PhoneSW.BSP                 Created for new architecture
 * Revision 1.0        2015-05-22        Fanhong.Kong@ProDrv.CHG            Created for new architecture
 * Revision 2.0        2018-04-14        Fanhong.Kong@ProDrv.CHG            Upgrade for SVOOC
 ***********************************************************************************/
@@ -61,6 +59,16 @@ enum {
 	PORTABLE_20W_1 = 0X34,
 	PORTABLE_20W_2 = 0x35,
 	PORTABLE_20W_3 = 0x36,
+};
+
+enum e_fastchg_power{
+	FASTCHG_POWER_UNKOWN,
+	FASTCHG_POWER_5V4A_5V6A_VOOC,
+	FASTCHG_POWER_11V3A_FLASHCHARGER,
+	FASTCHG_POWER_10V5A_SINGLE_BAT_SVOOC,
+	FASTCHG_POWER_10V5A_TWO_BAT_SVOOC,
+	FASTCHG_POWER_10V6P5A_TWO_BAT_SVOOC,
+	FASTCHG_POWER_OTHER,
 };
 
 enum {
@@ -155,6 +163,7 @@ struct oplus_vooc_chip {
 	bool need_to_up;
 	bool have_updated;
 	bool mcu_update_ing;
+	bool mcu_update_finish;
 	bool mcu_boot_by_gpio;
 	const unsigned char *firmware_data;
 	unsigned int fw_data_count;
@@ -164,13 +173,11 @@ struct oplus_vooc_chip {
 	int adapter_update_report;
 	int dpdm_switch_mode;
 	bool support_vooc_by_normal_charger_path;
-/* wenbin.liu@BSP.CHG.Vooc, 2016/10/20*/
 /* Add for vooc batt 4.40*/
 	bool batt_type_4400mv;
 	bool vooc_fw_check;
 	bool support_single_batt_svooc;
 	int vooc_fw_type;
-//PengNan@BSP.CHG.Vooc, 2018/02/28, add for vooc fw update.
 	int fw_update_flag;
 	struct manufacture_info manufacture_info;
 	bool vooc_fw_update_newmethod;
@@ -189,7 +196,17 @@ struct oplus_vooc_chip {
 	int vooc_high_temp;
 	int vooc_low_soc;
 	int vooc_high_soc;
+	int vooc_cool_bat_volt;
+	int vooc_little_cool_bat_volt;
+	int vooc_normal_bat_volt;
+	int vooc_warm_bat_volt;
+	int vooc_cool_bat_suspend_volt;
+	int vooc_little_cool_bat_suspend_volt;
+	int vooc_normal_bat_suspend_volt;
+	int vooc_warm_bat_suspend_volt;
+	int vooc_chg_current_now;
 	int fast_chg_type;
+	int gaugue_fast_chg_type;
 	bool disable_adapter_output;// 0--vooc adapter output normal,  1--disable vooc adapter output
 	int set_vooc_current_limit;///0--no limit;  1--max current limit 2A
 	bool vooc_multistep_adjust_current_support;
@@ -229,7 +246,19 @@ struct oplus_vooc_chip {
 	int fastcharge_fail_count;
 	int *vooc_current_lvl;
 	int vooc_current_lvl_cnt;
+	int detach_unexpectly;
 	bool reset_adapter;
+	bool suspend_charger;
+	bool parse_fw_from_dt;
+#ifdef OPLUS_CUSTOM_OP_DEF
+	bool hiz_gnd_cable;
+#endif
+	int *abnormal_adapter_current;
+	int abnormal_adapter_current_cnt;
+	int allowed_current_max;
+	int skin_thermal_high_threshold;
+	int skin_thermal_normal_threshold;
+	bool ctrl_by_skin_therm;
 };
 
 struct oplus_vooc_cp {
@@ -317,6 +346,7 @@ bool oplus_vooc_get_btb_temp_over(void);
 void oplus_vooc_reset_fastchg_after_usbout(void);
 void oplus_vooc_switch_fast_chg(void);
 void oplus_vooc_reset_mcu(void);
+int oplus_vooc_get_reset_gpio_status(void);
 void oplus_vooc_set_mcu_sleep(void);
 void oplus_vooc_set_vooc_chargerid_switch_val(int value);
 void oplus_vooc_set_ap_clk_high(void);
@@ -337,13 +367,21 @@ void oplus_vooc_uart_reset(void);
 void oplus_vooc_set_adapter_update_real_status(int real);
 void oplus_vooc_set_adapter_update_report_status(int report);
 int oplus_vooc_get_fast_chg_type(void);
+int oplus_gauge_get_fast_chg_type(void);
 void oplus_vooc_set_disable_adapter_output(bool disable);
 void oplus_vooc_set_vooc_max_current_limit(int current_level);
+bool oplus_vooc_get_detach_unexpectly(void);
+void oplus_vooc_set_detach_unexpectly(bool val);
 void oplus_vooc_turn_off_fastchg(void);
 int oplus_vooc_get_reply_bits(void);
 extern int get_vooc_mcu_type(struct oplus_vooc_chip *chip);
 bool opchg_get_mcu_update_state(void);
+void oplus_vooc_get_vooc_chip_handle(struct oplus_vooc_chip **chip);
 void oplus_vooc_reset_temp_range(struct oplus_vooc_chip *chip);
 void oplus_vooc_check_set_mcu_sleep(void);
 bool oplus_vooc_get_reset_adapter_st(void);
+bool oplus_vooc_get_mcu_update_finish_status(void);
+void oplus_vooc_set_update_finish_status_false(void);
+int oplus_vooc_get_reset_active_status(void);
+int oplus_vooc_get_abnormal_adapter_current_cnt(void);
 #endif /* _OPLUS_VOOC_H */

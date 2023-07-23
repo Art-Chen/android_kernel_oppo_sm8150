@@ -5,11 +5,9 @@
 *                 Manage all charger IC and define abstarct function flow.
 * Version    : 1.0
 * Date       : 2015-06-22
-* Author     : fanhui@PhoneSW.BSP
 *            : Fanhong.Kong@ProDrv.CHG
 * ------------------------------ Revision History: --------------------------------
 * <version>           <date>                <author>                                 <desc>
-* Revision 1.0        2015-06-22        fanhui@PhoneSW.BSP                 Created for new architecture
 * Revision 1.0        2015-06-22        Fanhong.Kong@ProDrv.CHG            Created for new architecture
 * Revision 2.0        2018-04-14        Fanhong.Kong@ProDrv.CHG            Upgrade for SVOOC
 ***********************************************************************************/
@@ -82,6 +80,8 @@ struct oplus_gauge_operations {
 	int (*get_gauge_i2c_err) (void);
 	void (*clear_gauge_i2c_err) (void);
 	void (*set_float_uv_ma)(int, int);
+	int (*protect_check) (void);
+	bool (*afi_update_done) (void);
 };
 
 /****************************************
@@ -144,6 +144,8 @@ int oplus_gauge_get_prev_batt_soc(void);
 int oplus_gauge_get_prev_batt_current(void);
 int oplus_gauge_get_prev_remaining_capacity(void);
 int oplus_gauge_get_prev_batt_fcc(void);
+int oplus_gauge_protect_check(void);
+bool oplus_gauge_afi_update_done(void);
 int oplus_gauge_update_battery_dod0(void);
 int oplus_gauge_update_soc_smooth_parameter(void);
 int oplus_gauge_get_battery_cb_status(void);

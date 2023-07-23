@@ -889,7 +889,6 @@ struct audproc_volume_ctrl_master_gain {
 } __packed;
 
 #ifdef OPLUS_FEATURE_KTV
-// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 struct audproc_revert_param {
 	int32_t mode;
 	int32_t volume;
@@ -1378,8 +1377,6 @@ struct adm_cmd_connect_afe_port_v5 {
 #define RT_PROXY_PORT_001_RX	0x2000
 #define RT_PROXY_PORT_001_TX	0x2001
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 #define AFE_LOOPBACK_TX	0x6001
 #endif /* OPLUS_ARCH_EXTENDS */
 #define DISPLAY_PORT_RX	0x6020
@@ -10744,8 +10741,7 @@ struct afe_spkr_prot_calib_get_resp {
 	struct asm_calib_res_cfg res_cfg;
 } __packed;
 
-#ifdef OPLUS_ARCH_EXTENDS
-/*Wan.li@MULTIMEDIA.AUDIODRIVER.CODEC, 2020/09/27, Add for Max98937*/
+#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 #ifdef CONFIG_SND_SOC_MAX98937
 /*Maxim DSM module and parameters IDs*/
 #define AFE_RX_TOPOLOGY_ID_DSM                              0x10001061

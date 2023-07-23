@@ -5,7 +5,6 @@
 ** Description : oppo display panel common feature
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -24,7 +23,7 @@
 #include "dsi_pwr.h"
 #include "sde_dbg.h"
 #include "oppo_dsi_support.h"
-
+#include "oppo_display_panel.h"
 struct panel_id
 {
 	uint32_t DA;
@@ -51,4 +50,9 @@ int oppo_display_panel_get_vendor(void *buf);
 int oppo_display_panel_get_ccd_check(void *buf);
 int oppo_display_panel_get_serial_number(void *buf);
 int oplus_display_get_panel_parameters(struct dsi_panel *panel, struct dsi_parser_utils *utils);
+int oplus_display_panel_get_closebl_flag(void *data);
+int oplus_display_panel_set_closebl_flag(void *data);
+int oplus_display_panel_get_brightness(void *buf);
+int oppo_display_set_aod_area(void *buf);
+int oplus_display_panel_set_dimlayer_hbm(void *data);
 #endif /*_OPPO_DISPLAY_PANEL_COMMON_H_*/

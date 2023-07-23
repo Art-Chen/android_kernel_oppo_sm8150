@@ -4,10 +4,8 @@
 * Description: For Rockchip RT5125 ASIC
 * Version   : 1.0
 * Date      : 2019-08-15
-* Author    : SJC@PhoneSW.BSP
 * ------------------------------ Revision History: --------------------------------
 * <version>       <date>        	<author>              		<desc>
-* Revision 1.0    2019-08-15  	SJC@PhoneSW.BSP    		Created for new architecture
 ***********************************************************************************/
 
 #define VOOC_ASIC_RT5125
@@ -119,10 +117,10 @@ struct rt5125_bat {
 	int temp_bat;
 	int soc_bat;
 	int reset_status;
+	int i2c_err_count;
 };
 
 static struct rt5125_bat the_bat;
-
 static struct oplus_vooc_chip *the_chip = NULL;
 struct wakeup_source *rt5125_update_wake_lock = NULL;
 struct delayed_work rt5125_update_temp_soc;
@@ -961,7 +959,7 @@ crc_busy_retry:
 	}
 	idx = DEFAULT_MAX_PAGELEN + fw_info % DEFAULT_MAX_PAGELEN - DEFAULT_VERINFO_LEN;
 	memcpy(verinfo, fwdata + idx, DEFAULT_VERINFO_LEN);
-	chip->fw_mcu_version = verinfo[6];
+	chip->fw_mcu_version = verinfo[DEFAULT_VERINFO_LEN - 4];
 	chg_err("update before: fw_mcu_version=%x,%x\n", chip->fw_mcu_version, verinfo[7]);
 	idx = len - DEFAULT_VERINFO_LEN;
 	ret = memcmp(verinfo, data + idx, DEFAULT_VERINFO_LEN);
@@ -991,13 +989,13 @@ static int rt5125_get_fw_verion_from_ic(struct oplus_vooc_chip *chip)
 		if (update_result) {
 			msleep(30);
 			opchg_set_clock_sleep(chip);
-			opchg_set_reset_active(chip);
+			opchg_set_reset_active_force(chip);
 		}
 	} else {
 		opchg_set_clock_active(chip);
 		chip->mcu_boot_by_gpio = true;
 		msleep(10);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		chip->mcu_update_ing = true;
 		msleep(2500);
 		chip->mcu_boot_by_gpio = false;
@@ -1014,7 +1012,7 @@ static int rt5125_get_fw_verion_from_ic(struct oplus_vooc_chip *chip)
 		chg_err("data:%x %x %x %x, fw_ver:%x\n", data_buf[0], data_buf[1], data_buf[2], data_buf[3], data_buf[0]);
 		chip->mcu_update_ing = false;
 		msleep(5);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 	}
 	return data_buf[0];
 }
@@ -1031,23 +1029,17 @@ static int rt5125_fw_check_then_recover(struct oplus_vooc_chip *chip)
 	} else
 		chg_debug("begin\n");
 	if (oplus_is_power_off_charging(chip) == true || oplus_is_charger_reboot(chip) == true) {
-		chip->mcu_update_ing = true;
-		opchg_set_reset_active(chip);
-		msleep(5);
-		update_result = rt5125_fw_update(chip);
 		chip->mcu_update_ing = false;
-		if (update_result) {
-			msleep(30);
-			opchg_set_clock_sleep(chip);
-			opchg_set_reset_active(chip);
-		}
+		opchg_set_clock_sleep(chip);
+		opchg_set_reset_sleep(chip);
+		the_bat.reset_status = 0;
 		ret = FW_NO_CHECK_MODE;
 	} else {
 		chip->mcu_boot_by_gpio = false;
 		opchg_set_clock_active(chip);
 		chip->mcu_boot_by_gpio = true;
 		msleep(10);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		chip->mcu_update_ing = true;
 		msleep(2500);
 		chip->mcu_boot_by_gpio = false;
@@ -1080,11 +1072,8 @@ static int rt5125_fw_check_then_recover(struct oplus_vooc_chip *chip)
 		opchg_set_reset_active(chip);
 		ret = FW_CHECK_MODE;
 	}
-	if (oplus_chg_get_chging_status() == true && is_vooc_support_single_batt_svooc() == true){
-		opchg_set_reset_active(chip);
-	} else {
-		opchg_set_reset_sleep(chip);
-	}
+	opchg_set_reset_sleep(chip);
+	the_bat.reset_status = 0;
 	return ret;
 }
 
@@ -1100,27 +1089,30 @@ int rt5125_get_battery_mvolts_current(void)
 	u8 read_buf[4] = { 0 };
 	ret = oplus_i2c_dma_read(the_chip->client, 0x00, 2, read_buf);
 	if (ret < 0) {
-		chg_err("rt5125 read slave ack fail");
+		chg_err("rt5125 read slave ack fail, reset status:%d\n", oplus_vooc_get_reset_gpio_status());
 		the_bat.uv_bat = 0;
+		if (oplus_vooc_get_fastchg_started() != true)
+		the_bat.i2c_err_count++;
 		return -1;
 	}
+	the_bat.i2c_err_count = 0;
 	uv_bat = (read_buf[1] << 8) | read_buf[0];
 	ret = oplus_i2c_dma_read(the_chip->client, 0x02, 4, read_buf);
 	if (ret < 0) {
-		chg_err("rt5125 read slave ack fail");
+		chg_err("rt5125 read slave ack fail, reset status:%d\n", oplus_vooc_get_reset_gpio_status());
 		the_bat.current_bat = 0;
 		return -1;
 	}
 	current_bat = (read_buf[3] << 24) | (read_buf[2] << 16) | (read_buf[1] << 8) | read_buf[0];
 	ret = oplus_i2c_dma_read(the_chip->client, 0x20, 2, read_buf);
 	if (ret < 0) {
-		chg_err("rt5125 read slave ack fail");
+		chg_err("rt5125 read slave ack fail, reset status:%d\n", oplus_vooc_get_reset_gpio_status());
 		return -1;
 	}
 	debug_addr1 = (read_buf[1] << 8) | read_buf[0];
 	ret = oplus_i2c_dma_read(the_chip->client, 0x22, 2, read_buf);
 	if (ret < 0) {
-		chg_err("rt5125 read slave ack fail");
+		chg_err("rt5125 read slave ack fail, reset status:%d\n", oplus_vooc_get_reset_gpio_status());
 		return -1;
 	}
 	debug_addr2 = (read_buf[1] << 8) | read_buf[0];
@@ -1147,11 +1139,18 @@ int rt5125_get_battery_mvolts_current(void)
 
 int rt5125_get_prev_battery_mvolts(void)
 {
-	if (the_bat.reset_status == 1) {
-		printk("rt5125 reset, cannot read volts\n");
+	if (the_bat.reset_status == 0) {
+		chg_debug("rt5125 reset sleep, cannot read volts\n");
 		return 0;
 	}
-
+	if (the_chip->mcu_update_ing) {
+		chg_debug("mcu_update_ing:%d,return\n", the_chip->mcu_update_ing);
+		return 0;
+	}
+	if (the_bat.i2c_err_count > 10) {
+		chg_debug("i2c_err_count:%d,return\n", the_bat.i2c_err_count);
+		return 0;
+	}
 	if (oplus_vooc_get_fastchg_started() != true) {
 		rt5125_get_battery_mvolts_current();
 	}
@@ -1186,11 +1185,19 @@ int rt5125_set_battery_temperature_soc(int temp_bat, int soc_bat)
 
 int rt5125_get_prev_battery_current(void)
 {
-	if (the_bat.reset_status == 1) {
-		printk("rt5125 reset, cannot read current\n");
+	if (the_bat.reset_status == 0) {
+		chg_debug("rt5125 reset sleep, cannot read volts\n");
 		return 0;
 	}
-	return the_bat.current_bat;
+	if (the_chip->mcu_update_ing) {
+		chg_debug("mcu_update_ing:%d,return\n", the_chip->mcu_update_ing);
+		return 0;
+	}
+	if (the_bat.i2c_err_count > 10) {
+		chg_debug("i2c_err_count:%d,return\n", the_bat.i2c_err_count);
+		return 0;
+	}
+	return -the_bat.current_bat/1000;
 }
 
 extern bool oplus_chg_get_chging_status(void);
@@ -1241,8 +1248,16 @@ void rt5125_set_reset_active(struct oplus_vooc_chip *chip)
 {
 	the_bat.uv_bat = 0;
 	the_bat.current_bat = 0;
-	the_bat.reset_status = 1;
 	opchg_set_reset_active(chip);
+	the_bat.reset_status = 1;
+	the_bat.i2c_err_count = 0;
+}
+
+void rt5125_set_reset_sleep(struct oplus_vooc_chip *chip)
+{
+	the_bat.uv_bat = 0;
+	the_bat.current_bat = 0;
+	opchg_set_reset_sleep(chip);
 	the_bat.reset_status = 0;
 }
 #endif
@@ -1264,7 +1279,7 @@ struct oplus_vooc_operations oplus_rt5125_ops = {
 	.reset_fastchg_after_usbout = reset_fastchg_after_usbout,
 	.switch_fast_chg = switch_fast_chg,
 	.reset_mcu = rt5125_set_reset_active,
-	.set_mcu_sleep = opchg_set_reset_sleep,
+	.set_mcu_sleep = rt5125_set_reset_sleep,
 	.set_vooc_chargerid_switch_val = opchg_set_vooc_chargerid_switch_val,
 	.is_power_off_charging = oplus_is_power_off_charging,
 	.get_reset_gpio_val = oplus_vooc_get_reset_gpio_val,
@@ -1308,6 +1323,52 @@ static void rt5125_shutdown(struct i2c_client *client)
 	msleep(80);
 }
 
+static int rt5125_parse_fw_from_dt(struct oplus_vooc_chip *chip)
+{
+	struct device_node *node = chip->dev->of_node;
+	const char *data;
+	int len = 0;
+
+	if (!node) {
+		pr_err("device tree info. missing\n");
+		return -ENOMEM;
+	}
+
+	data = of_get_property(node, "vooc,firmware_data", &len);
+	if (!data) {
+		pr_err("%s: parse vooc fw failed\n", __func__);
+		return -ENOMEM;
+	}
+
+	chip->firmware_data = data;
+	chip->fw_data_count = len;
+	chip->fw_data_version = data[len - 4];
+	pr_err("%s: version: 0x%x, count: %d\n", __func__, chip->fw_data_version, chip->fw_data_count);
+
+	return 0;
+}
+
+static int rt5125_parse_fw_from_array(struct oplus_vooc_chip *chip)
+{
+	if (chip->batt_type_4400mv) {
+		chip->firmware_data = rt5125_fw;
+		chip->fw_data_count = sizeof(rt5125_fw);
+		chip->fw_data_version = rt5125_fw[chip->fw_data_count - 4];
+	} else {
+		chip->firmware_data = rt5125_fw;
+		chip->fw_data_count = sizeof(rt5125_fw);
+		chip->fw_data_version = rt5125_fw[chip->fw_data_count - 4];
+	}
+
+	if (chip->vooc_fw_type == VOOC_FW_TYPE_RT5125_4400_VOOC_FFC_15C) {
+		chip->firmware_data = rt5125_fw;
+		chip->fw_data_count = sizeof(rt5125_fw);
+		chip->fw_data_version = rt5125_fw[chip->fw_data_count - 4];
+	}
+
+	return 0;
+}
+
 static int rt5125_driver_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct oplus_vooc_chip *chip;
@@ -1342,20 +1403,12 @@ static int rt5125_driver_probe(struct i2c_client *client, const struct i2c_devic
 	mutex_init(&chip->pinctrl_mutex);
 #if 1
 	oplus_vooc_fw_type_dt(chip);
-	if (chip->batt_type_4400mv) {
-		chip->firmware_data = rt5125_fw;
-		chip->fw_data_count = sizeof(rt5125_fw);
-		chip->fw_data_version = rt5125_fw[chip->fw_data_count - 4];
-	} else {
-		chip->firmware_data = rt5125_fw;
-		chip->fw_data_count = sizeof(rt5125_fw);
-		chip->fw_data_version = rt5125_fw[chip->fw_data_count - 4];
-	}
-	if (chip->vooc_fw_type == VOOC_FW_TYPE_RT5125_4400_VOOC_FFC_15C) {
-		chip->firmware_data = rt5125_fw;
-		chip->fw_data_count = sizeof(rt5125_fw);
-		chip->fw_data_version = rt5125_fw[chip->fw_data_count - 4];
-	}
+
+	if (chip->parse_fw_from_dt)
+		rt5125_parse_fw_from_dt(chip);
+	else
+		rt5125_parse_fw_from_array(chip);
+
 	chip->vops = &oplus_rt5125_ops;
 	chip->fw_mcu_version = 0;
 	oplus_vooc_gpio_dt_init(chip);
@@ -1369,6 +1422,7 @@ static int rt5125_driver_probe(struct i2c_client *client, const struct i2c_devic
 		oplus_vooc_fw_update_work_init(chip);
 	rt5125_update_work_init();
 	oplus_plat_gauge_init(&oplus_rt5125_plat_ops);
+	the_bat.reset_status = 0;
 	oplus_vooc_init(chip);
 #endif
 	register_vooc_devinfo();

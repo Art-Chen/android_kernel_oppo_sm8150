@@ -5,7 +5,6 @@
 ** Description : oppo display panel char dev  /dev/oppo_panel
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -31,9 +30,10 @@
 #include "oppo_ffl.h"
 #include "oppo_aod.h"
 #include "oppo_dc_diming.h"
+#include "oppo_onscreenfingerprint.h"
 
-#define OPPO_PANEL_NAME "oppo_display"
-#define OPPO_PANEL_CLASS_NAME "oppo_display_class"
+#define OPPO_PANEL_NAME "oplus_display"
+#define OPPO_PANEL_CLASS_NAME "oplus_display_class"
 
 #define OPPO_PANEL_IOCTL_BASE			'o'
 
@@ -59,9 +59,31 @@ struct panel_ioctl_desc {
 	const char *name;
 };
 
+#define RAMLESS_AOD_PAYLOAD_SIZE	100
+#define RAMLESS_AOD_AREA_NUM		6
+struct panel_aod_area {
+	int x;
+	int y;
+	int w;
+	int h;
+	int color;
+	int bitdepth;
+	int mono;
+	int gray;
+};
+
+struct panel_aod_area_para {
+	struct panel_aod_area aod_area[RAMLESS_AOD_AREA_NUM];
+	uint32_t size;
+};
+struct hecate_info {
+	uint32_t display_id;
+	uint32_t kgsl_dump; /* 1 present kgsl fence timeout */
+};
+
 /*oppo ioctl case start*/
 #define PANEL_COMMOND_BASE 0x00
-#define PANEL_COMMOND_MAX  0x15
+#define PANEL_COMMOND_MAX  0x55
 
 #define PANEL_IOCTL_SET_POWER				  PANEL_IOW(0x01, struct panel_vol_set)
 #define PANEL_IOCTL_GET_POWER				  PANEL_IOWR(0x02, struct panel_vol_get)
@@ -83,6 +105,17 @@ struct panel_ioctl_desc {
 #define PANEL_IOCTL_GET_DIM_ALPHA			  PANEL_IOWR(0x12, unsigned int)
 #define PANEL_IOCTL_SET_DIM_DC_ALPHA		  PANEL_IOW(0x13, unsigned int)
 #define PANEL_IOCTL_GET_DIM_DC_ALPHA		  PANEL_IOWR(0x14, unsigned int)
+#define PANEL_IOCTL_SET_POWER_STATUS		  PANEL_IOW(0x18, unsigned int)
+#define PANEL_IOCTL_GET_POWER_STATUS		  PANEL_IOWR(0x19, unsigned int)
+#define PANEL_IOCTL_SET_CLOSEBL_FLAG		  PANEL_IOW(0x1B, unsigned int)
+#define PANEL_IOCTL_GET_CLOSEBL_FLAG		  PANEL_IOWR(0x1C, unsigned int)
+#define PANEL_IOCTL_SET_DIMLAYER_HBM		  PANEL_IOW(0x1F, unsigned int)
+#define PANEL_IOCTL_GET_DIMLAYER_HBM		  PANEL_IOWR(0x20, unsigned int)
+#define PANEL_IOCTL_SET_DIMLAYER_BL_EN        PANEL_IOW(0X21, unsigned int)
+#define PANEL_IOCTL_GET_OPLUS_BRIGHTNESS      PANEL_IOWR(0x2B, unsigned int)
+#define PANEL_IOCTL_SET_AOD_AREA              PANEL_IOW(0x2E, struct panel_aod_area_para)
+#define PANEL_IOCTL_SET_HECATE_INFO           PANEL_IOW(0x54, struct hecate_info)
+
 /*oppo ioctl case end*/
 
 #endif /*_OPPO_DISPLAY_PANEL_H_*/

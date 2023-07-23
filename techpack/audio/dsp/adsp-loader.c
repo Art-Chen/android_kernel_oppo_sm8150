@@ -24,12 +24,10 @@
 
 #include <soc/qcom/subsystem_restart.h>
 #ifdef OPLUS_BUG_STABILITY
-// laq@PSW.BSP.SENSOR, 2020/08/25, enable l8c if dts config
 #include <linux/regulator/consumer.h>
 #endif // OPLUS_BUG_STABILITY
 #ifdef OPLUS_ARCH_EXTENDS
 #ifdef CONFIG_OPPO_KEVENT_UPLOAD
-/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.STABLITY, 2019/02/03, Add for audio driver kevent log*/
 #include <asoc/oppo_mm_audio_kevent.h>
 #endif /* CONFIG_OPPO_KEVENT_UPLOAD */
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -75,7 +73,6 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 	struct adsp_loader_private *priv = NULL;
 	#ifdef OPLUS_ARCH_EXTENDS
 	#ifdef CONFIG_OPPO_KEVENT_UPLOAD
-	/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.STABLITY, 2019/02/03, Add for audio driver kevent log*/
 	unsigned char payload[64] = "";
 	#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
 	#endif /* OPLUS_ARCH_EXTENDS */
@@ -85,9 +82,7 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 	u32 adsp_state;
 	const char *img_name;
 #ifdef OPLUS_BUG_STABILITY
-// laq@BSP.Sensor, 2020-08-27, add for multi adsp fw load
 	const char *adsp_img = NULL;
-// laq@PSW.BSP.SENSOR, 2020/08/25, enable l8c if dts config
 	struct regulator *vdd_1v8 = NULL;
 #endif // OPLUS_BUG_STABILITY
 
@@ -109,7 +104,6 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 		goto fail;
 	}
 #ifdef OPLUS_BUG_STABILITY
-// laq@PSW.BSP.SENSOR, 2020/08/25, enable l8c if dts config
 	vdd_1v8 = regulator_get(&pdev->dev, "vddio");
 	if (vdd_1v8 != NULL) {
 		dev_err(&pdev->dev,"%s: vdd_1v8 is not NULL\n", __func__);
@@ -170,7 +164,6 @@ load_adsp:
 				goto fail;
 			}
 #ifdef OPLUS_BUG_STABILITY
-// laq@BSP.Sensor, 2020-08-27, add for multi adsp fw load
 			rc = of_property_read_string(pdev->dev.of_node, "multi-adsp-firmware", &adsp_img);
 			if (rc) {
 				dev_err(&pdev->dev,
@@ -205,7 +198,6 @@ load_adsp:
 					__func__);
 				#ifdef OPLUS_ARCH_EXTENDS
 				#ifdef CONFIG_OPPO_KEVENT_UPLOAD
-				/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.STABLITY, 2019/02/03, Add for audio driver kevent log*/
 				scnprintf(payload, sizeof(payload), "EventID@@%d$$adsp_fw_get_fail",
 					OPPO_MM_AUDIO_EVENT_ID_ADSP_FW_FAIL);
 				#endif /* CONFIG_OPPO_KEVENT_UPLOAD */

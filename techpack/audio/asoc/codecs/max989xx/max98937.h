@@ -1975,8 +1975,6 @@ typedef enum{
 } MAX98927_CHANNEL_SHIFT;
 
 #ifdef OPLUS_ARCH_EXTENDS
-/*zhao.Pan@PSW.MM.AudioDriver.SmartPA, 2019/07/31,
- * add for applying calibration range and result to APP */
 enum {
     RANGE_MIN = 0,
     RANGE_MAX,
@@ -2029,8 +2027,6 @@ struct max989xx_priv {
 	bool dsm_enable;
 	int  bIsMax98937[2];  //0-max98927; 1-max98937; -1-unknow;
 	#ifdef OPLUS_ARCH_EXTENDS
-	/*zhao.Pan@PSW.MM.AudioDriver.SmartPA, 2019/07/31,
-	 * add for applying calibration range and result to APP */
 	unsigned int range_mohms[MAX_CHANNEL_NUM][RANGE_COUNT];
 	#endif /* OPLUS_ARCH_EXTENDS */
 };

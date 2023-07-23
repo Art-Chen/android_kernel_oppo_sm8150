@@ -221,7 +221,9 @@ msm_drm-$(CONFIG_DRM_MSM) += \
 	msm_fence.o \
 	msm_debugfs.o
 
-msm_drm-y += oplus/oppo_dsi_support.o \
+msm_drm-y += oplus/oppo_mm_kevent_fb.o \
+	oplus/oppo_mm_kevent.o \
+	oplus/oppo_dsi_support.o \
 	oplus/oppo_display_private_api.o \
 	oplus/oppo_dc_diming.o \
 	oplus/oppo_onscreenfingerprint.o \
@@ -232,8 +234,5 @@ msm_drm-y += oplus/oppo_dsi_support.o \
 	oplus/oppo_display_panel_seed.o \
 	oplus/oppo_display_panel_common.o \
 	oplus/oppo_display_panel_hbm.o
-
-#xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature
-msm_drm-y += oplus/oplus_display_panel_cabc.o
 
 obj-$(CONFIG_DRM_MSM)	+= msm_drm.o

@@ -227,6 +227,10 @@ source "drivers/input/gameport/Kconfig"
 source "drivers/input/oppo_fp_drivers/Kconfig"
 #endif
 
+#ifdef OPLUS_FEATURE_SECURITY_COMMON
+#add for oplus secure
+source "drivers/input/oplus_secure_common/Kconfig"
+#endif /* OPLUS_FEATURE_SECURITY_COMMON */
 endmenu
 
 endmenu

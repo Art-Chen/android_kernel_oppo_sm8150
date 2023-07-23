@@ -11,7 +11,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 #include "gf_spi.h"
-
+#include "../include/fingerprint_event.h"
 #define MAX_MSGSIZE 32
 
 static int pid = -1;
@@ -29,7 +29,9 @@ void sendnlmsg(char *msg)
     int len = NLMSG_SPACE(MAX_MSGSIZE);
     int ret = 0;
     struct gf_dev *gf_dev = &gf;
-
+    if (get_fp_driver_event_type() != FP_DIRVER_NETLINK) {
+        return;
+    }
     if (!msg || !nl_sk || !pid) {
         return ;
     }
@@ -69,9 +71,12 @@ void sendnlmsg(char *msg)
 	struct nlmsghdr *nlh;
 	int len = NLMSG_SPACE(MAX_MSGSIZE);
 	int ret = 0;
-	if (!msg || !nl_sk || !pid) {
-		return ;
-	}
+    if (!msg || !nl_sk || !pid) {
+        return;
+    }
+    if (get_fp_driver_event_type() != FP_DIRVER_NETLINK) {
+        return;
+    }
 	skb_1 = alloc_skb(len, GFP_KERNEL);
 	if (!skb_1) {
 		pr_err("alloc_skb error\n");

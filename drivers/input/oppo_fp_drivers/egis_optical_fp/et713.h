@@ -29,7 +29,7 @@
 #include <linux/printk.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 #include <linux/msm_drm_notify.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>

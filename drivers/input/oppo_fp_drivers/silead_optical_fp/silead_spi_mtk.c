@@ -49,7 +49,7 @@
 #endif
 
 #include "silead_spi_mtk.h"
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 
 #define FP_DEV_NAME "silead_fp"
 #define FP_DEV_MAJOR 0	/* assigned */
@@ -92,7 +92,6 @@ struct silfp_data {
     spinlock_t		irq_lock;
     int		int_port;
 //#ifdef OPLUS_FEATURE_FINGERPRINT
-//Zemin.Li@BSP.Fingerprint.Basic, 2019.11.29, fix failed to get irq
     int     irq_gpio;
 //#endif OPLUS_FEATURE_FINGERPRINT
     int		irq;
@@ -1422,7 +1421,7 @@ static const struct of_device_id sildev_dt_ids[] = {
     { .compatible = "sil,silead-fp" },
     { .compatible = "sil,fingerprint" },
     { .compatible = "sil,silead_fp-pins" },
-    { .compatible = "oppo,oppo_fp" },
+    { .compatible = "oplus,oplus_fp" },
     {},
 };
 

@@ -48,7 +48,6 @@
 
 #ifdef OPLUS_ARCH_EXTENDS
 #ifdef CONFIG_OPPO_KEVENT_UPLOAD
-/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.STABLITY, 2019/02/03, Add for audio driver kevent log*/
 #include <asoc/oppo_mm_audio_kevent.h>
 #endif /* CONFIG_OPPO_KEVENT_UPLOAD */
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -92,7 +91,6 @@
 #define SM6150_SOC_MSM_ID 0x163
 
 #ifdef OPLUS_ARCH_EXTENDS
-/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 static unsigned long clk_on_jiffies = 0;
 static unsigned long clk_off_jiffies = 0;
 static unsigned int clk_switch_us = 52*1000; //52ms
@@ -214,8 +212,6 @@ enum {
 };
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 enum {
 	AFE_LOOPBACK_TX_IDX = 0,
 	AFE_LOOPBACK_TX_IDX_MAX,
@@ -238,8 +234,6 @@ struct msm_asoc_mach_data {
 	int hph_en1_gpio;
 	int hph_en0_gpio;
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.CODEC.2101666, 2019/07/17,
-	 * add switch control for DMIC CLK source of DVT2 devices */
 	int dmic_switch_gpio;
 #endif /* OPLUS_ARCH_EXTENDS */
 	struct device_node *mi2s_gpio_p[MI2S_MAX]; /* used by pinctrl API */
@@ -416,8 +410,6 @@ static struct dev_config cdc_dma_tx_cfg[] = {
 };
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static struct dev_config afe_loopback_tx_cfg[] = {
 	[AFE_LOOPBACK_TX_IDX] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 };
@@ -480,8 +472,6 @@ static struct dev_config aux_pcm_tx_cfg[] = {
 };
 static int msm_vi_feed_tx_ch = 2;
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static const char *const afe_loopback_tx_ch_text[] = {"One", "Two"};
 #endif /* OPLUS_ARCH_EXTENDS */
 static const char *const slim_rx_ch_text[] = {"One", "Two"};
@@ -547,8 +537,6 @@ static char const *cdc_dma_sample_rate_text[] = {"KHZ_8", "KHZ_11P025",
 						 "KHZ_352P8", "KHZ_384"};
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static SOC_ENUM_SINGLE_EXT_DECL(afe_loopback_tx_chs, afe_loopback_tx_ch_text);
 #endif /* OPLUS_ARCH_EXTENDS */
 static SOC_ENUM_SINGLE_EXT_DECL(slim_0_rx_chs, slim_rx_ch_text);
@@ -697,9 +685,6 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
 	#ifndef OPLUS_ARCH_EXTENDS
-	/* Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.HEADSETDET, 2017/04/10,
-	 * Modify for headset detect.
-	 */
 	.detect_extn_cable = true,
 	#else /* OPLUS_ARCH_EXTENDS */
 	.detect_extn_cable = false,
@@ -717,7 +702,6 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.key_code[7] = 0,
 	.linein_th = 5000,
 	#ifndef OPLUS_ARCH_EXTENDS
-	/*Le.Li@MULTIMEDIA.AUDIODRIVER.HEADSETDET, 2018/11/07, Modify disable moisture check*/
 	.moisture_en = true,
 	#else
 	.moisture_en = false,
@@ -1140,8 +1124,6 @@ static int slim_tx_bit_format_put(struct snd_kcontrol *kcontrol,
 }
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static int afe_loopback_tx_ch_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
@@ -3564,8 +3546,6 @@ static int msm_hifi_put(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new msm_int_snd_controls[] = {
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	SOC_ENUM_EXT("AFE_LOOPBACK_TX Channels", afe_loopback_tx_chs,
 			afe_loopback_tx_ch_get, afe_loopback_tx_ch_put),
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -3675,8 +3655,6 @@ static const struct snd_kcontrol_new msm_int_snd_controls[] = {
 
 static const struct snd_kcontrol_new msm_ext_snd_controls[] = {
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	SOC_ENUM_EXT("AFE_LOOPBACK_TX Channels", afe_loopback_tx_chs,
 			afe_loopback_tx_ch_get, afe_loopback_tx_ch_put),
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -4108,7 +4086,6 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 	char  *wname;
 
 	#ifdef OPLUS_ARCH_EXTENDS
-	/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 	static bool dmic_active = false;
 	unsigned int interval_us = 0;
 	#endif /* OPLUS_ARCH_EXTENDS */
@@ -4151,7 +4128,6 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 		if (!dmic_active) {
 			if ((jiffies > clk_off_jiffies)
 				&& ((jiffies - clk_off_jiffies) < usecs_to_jiffies(clk_switch_us))) {
@@ -4165,8 +4141,6 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 			}
 		}
 
-		/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.CODEC.2101666, 2019/07/17,
-		 * add switch control for DMIC CLK source of DVT2 devices */
 		if (dmic_idx == 1) {
 			if (gpio_is_valid(pdata->dmic_switch_gpio)) {
 				ret = gpio_direction_output(pdata->dmic_switch_gpio, 0);
@@ -4189,7 +4163,6 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 			}
 		}
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 		if (!dmic_active) {
 			dmic_active = true;
 			clk_on_jiffies = jiffies;
@@ -4209,13 +4182,10 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 			}
 		}
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 		if (dmic_active) {
 			dmic_active = false;
 		}
 
-		/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.CODEC.2101666, 2019/07/17,
-		 * add switch control for DMIC CLK source of DVT2 devices */
 		if (dmic_idx == 1) {
 			if (gpio_is_valid(pdata->dmic_switch_gpio)) {
 				ret = gpio_direction_output(pdata->dmic_switch_gpio, 1);
@@ -4388,8 +4358,6 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					SNDRV_PCM_HW_PARAM_CHANNELS);
 	int rc = 0;
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	int idx = 0;
 #else /* OPLUS_ARCH_EXTENDS */
 	int idx;
@@ -4398,8 +4366,6 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_soc_codec *codec = NULL;
 
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	pr_debug("%s: format = %d, rate = %d, id = %d\n",
 		  __func__, params_format(params), params_rate(params), dai_link->id);
 #else /* OPLUS_ARCH_EXTENDS */
@@ -4409,8 +4375,6 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	switch (dai_link->id) {
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	case MSM_BACKEND_DAI_AFE_LOOPBACK_TX:
 		param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
 				afe_loopback_tx_cfg[idx].bit_format);
@@ -5365,9 +5329,6 @@ static void *def_wcd_mbhc_cal(void)
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(wcd_mbhc_cal)->X) = (Y))
 	#ifndef OPLUS_ARCH_EXTENDS
-	/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.HEADSETDET, 2017/03/06,
-	 *Modify for headset detect.
-	 */
 	S(v_hs_max, 1600);
 	#else /* OPLUS_ARCH_EXTENDS */
 	S(v_hs_max, 1700);
@@ -5382,7 +5343,6 @@ static void *def_wcd_mbhc_cal(void)
 		(sizeof(btn_cfg->_v_btn_low[0]) * btn_cfg->num_btn);
 
 #ifndef OPLUS_ARCH_EXTENDS
-/* Zhao.Pan@MULTIMEDIA.AUDIODRIVER.HEADSETDET, 2018/12/13, modify for headset button det */
 	btn_high[0] = 75;
 	btn_high[1] = 150;
 	btn_high[2] = 237;
@@ -6050,7 +6010,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 
 	#ifdef OPLUS_ARCH_EXTENDS
 	#ifdef CONFIG_OPPO_KEVENT_UPLOAD
-	/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.STABLITY, 2019/02/03, Add for audio driver kevent log*/
 	unsigned char payload[256] = "";
 	#endif /* CONFIG_OPPO_KEVENT_UPLOAD */
 	#endif /* OPLUS_ARCH_EXTENDS */
@@ -6100,9 +6059,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 			goto clk_off;
 		}
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.FTM.1396163, 2018/05/27,
-		 *Add for FTM mode ak4376 pdn not pulldown, cause sleep current issue.
-		 */
 		if (index == SEC_MI2S && !mi2s_intf_conf[index].msm_is_mi2s_master) {
 			ret = snd_soc_dai_set_fmt(rtd->codec_dai, fmt|SND_SOC_DAIFMT_I2S);
 			if (ret < 0) {
@@ -6121,7 +6077,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 
 				#ifdef OPLUS_ARCH_EXTENDS
 				#ifdef CONFIG_OPPO_KEVENT_UPLOAD
-				/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.STABLITY, 2019/02/03, Add for audio driver kevent log*/
 				scnprintf(payload, sizeof(payload), "EventID@@%d$$mi2s_set_clk_fail$$index@@%d$$path@@%d$$err@@%d",
 					OPPO_MM_AUDIO_EVENT_ID_CLK_FAIL, index, substream->stream, ret);
 				upload_mm_audio_kevent_data(payload);
@@ -6157,7 +6112,6 @@ static void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 
 	#ifdef OPLUS_ARCH_EXTENDS
-	/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 	unsigned int interval_us = 0;
 	#endif /* OPLUS_ARCH_EXTENDS */
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
@@ -6181,7 +6135,6 @@ static void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 
 
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 		if (substream->stream == 1) {
 			if ((jiffies > clk_on_jiffies)
 				&&((jiffies - clk_on_jiffies) < usecs_to_jiffies(clk_switch_us))) {
@@ -6214,7 +6167,6 @@ static void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 		}
 
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.CODEC.1911528, 2019/03/22, Add for make sure dmic clock stable>50ms*/
 		if ((substream->stream == 1) && (ret >= 0)) {
 			clk_off_jiffies = jiffies;
 		}
@@ -6249,9 +6201,6 @@ static struct snd_soc_ops msm_ext_cpe_ops = {
 };
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.HEADSETDAC 2015/06/03,
- * Add for no sound when ap suspend in call.
- */
 static int ak4376_audrx_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
@@ -6262,7 +6211,6 @@ static int ak4376_audrx_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_ignore_suspend(dapm, "AK4376 HPL");
 	snd_soc_dapm_ignore_suspend(dapm, "AK4376 HPR");
-	/*xiang.fei@MULTIMEDIA.AUDIODRIVER.HEADSETDAC, 2017/03/19, Add for kernel 4.4*/
 	snd_soc_dapm_ignore_suspend(dapm, "Playback");
 
 	snd_soc_dapm_sync(dapm);
@@ -6272,7 +6220,6 @@ static int ak4376_audrx_init(struct snd_soc_pcm_runtime *rtd)
 #endif /* OPLUS_ARCH_EXTENDS */
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.HEADSETDAC, 2017/09/21, Add for ak43xx */
 static struct snd_soc_dai_link ak43xx_be_dai_links[] = {
 	{
 		.name = LPASS_BE_SEC_MI2S_RX,
@@ -6294,7 +6241,6 @@ static struct snd_soc_dai_link ak43xx_be_dai_links[] = {
 #endif /* OPLUS_ARCH_EXTENDS */
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2017/09/21, Add for tfa98xx */
 static struct snd_soc_dai_link tfa98xx_be_dai_links[] = {
 	{
 		.name = LPASS_BE_TERT_MI2S_RX,
@@ -6906,7 +6852,6 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.platform_name = "msm-pcm-hostless",
 		.dynamic = 1,
 		#ifdef OPLUS_ARCH_EXTENDS
-		/*Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.MACHINE, 2017/02/20, Add for loopback test*/
 		.dpcm_playback = 1,
 		#endif /* OPLUS_ARCH_EXTENDS */
 		.dpcm_capture = 1,
@@ -7035,7 +6980,6 @@ static struct snd_soc_dai_link msm_int_compress_capture_dai[] = {
 
 static struct snd_soc_dai_link msm_bolero_fe_dai_links[] = {
 	#ifndef OPLUS_ARCH_EXTENDS
-	/* Ming.Liu@MULTIMEDIA.AUDIODRIVER.CODEC, 2019/05/14, Modified for TFA9874 feedback */
 	{/* hw:x,37 */
 		.name = LPASS_BE_WSA_CDC_DMA_TX_0,
 		.stream_name = "WSA CDC DMA0 Capture",
@@ -8190,8 +8134,6 @@ static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 	},
 };
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static struct snd_soc_dai_link msm_afe_rxtx_lb_be_dai_link[] = {
 	{
 		.name = LPASS_BE_AFE_LOOPBACK_TX,
@@ -8367,7 +8309,6 @@ static struct snd_soc_dai_link msm_rx_tx_cdc_dma_be_dai_links[] = {
 };
 
 #ifndef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2019/07/12, modify for barge_in */
 static struct snd_soc_dai_link msm_sm6150_dai_links[
 			 ARRAY_SIZE(msm_common_dai_links) +
 			 ARRAY_SIZE(msm_tavil_fe_dai_links) +
@@ -8702,15 +8643,10 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 	const struct of_device_id *match;
 	u32 tasha_codec = 0;
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	uint32_t afe_loopback_intf = 0;
 #endif /* OPLUS_ARCH_EXTENDS */
 
 	#ifdef OPLUS_ARCH_EXTENDS
-	/* Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.MACHINE, 2017/01/23,
-	 * Add for custom audio.
-	 */
 	int i = 0;
 	const char *product_name = NULL;
 	const char *oppo_speaker_type = "oppo,speaker-pa";
@@ -8836,9 +8772,6 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 			if (mi2s_audio_intf) {
 
 				#ifdef OPLUS_ARCH_EXTENDS
-				/* Jianfeng.Qiu@MULTIMEDIA.AUDIODRIVER.MACHINE, 2017/01/23,
-				 * Add for custom audio.
-				 */
 				if (!of_property_read_string(dev->of_node, oppo_headphone_type,
 						&product_name)) {
 					pr_info("%s: custom headphone product %s\n", __func__, product_name);
@@ -8862,7 +8795,6 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 					for (i = 0; i < ARRAY_SIZE(msm_mi2s_be_dai_links); i++) {
 						temp_link = &msm_mi2s_be_dai_links[i];
 						if (temp_link->id == MSM_BACKEND_DAI_TERTIARY_MI2S_RX) {
-							/* xiang.fei@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2019/02/25, Modify for tfa98xx */
 							if (!strcmp(product_name, "nxp")
 								&& soc_find_component(NULL, tfa98xx_be_dai_links[0].codec_name)) {
 								pr_info("%s: use nxp dailink replace\n", __func__);
@@ -8916,8 +8848,6 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		}
 
 #ifdef OPLUS_ARCH_EXTENDS
-		/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-		 * add for RX-to-TX AFE Loopback for AEC path */
 		rc = of_property_read_u32(dev->of_node, "qcom,afe-rxtx-lb",
 					&afe_loopback_intf);
 		if (rc) {
@@ -9628,8 +9558,6 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	}
 
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.CODEC.2101666, 2019/07/17,
-	 * add switch control for DMIC CLK source of DVT2 devices */
 	pdata->dmic_switch_gpio = of_get_named_gpio(pdev->dev.of_node,
 						"dmic-switch-gpio", 0);
 	if (!gpio_is_valid(pdata->dmic_switch_gpio)) {

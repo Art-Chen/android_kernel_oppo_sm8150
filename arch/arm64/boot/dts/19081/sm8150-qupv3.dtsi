@@ -110,6 +110,9 @@
 
 	qupv3_se4_i2c: i2c@890000 {
 		compatible = "qcom,i2c-geni";
+		//#ifdef OPLUS_ARCH_EXTENDS
+		qcom,clk-freq-out = <100000>;
+		//#endif /*OPLUS_ARCH_EXTENDS*/
 		reg = <0x890000 0x4000>;
 		interrupts = <GIC_SPI 605 0>;
 		#address-cells = <1>;
@@ -473,7 +476,6 @@
 //#ifdef VENDOR_EDIT//Fanhong.Kong@ProDrv.CHG,add 2018/04/20 for SVOOC		
 		qcom,clk-freq-out = <100000>;
 //#endif /*VENDOR_EDIT*/
-//#ifndef VENDOR_EDIT /* tongfeng.Huang@BSP.CHG.Basic, 2018/11/02,  Add for charging */
 		///status = "disabled";
 //#else
 		status = "ok";
@@ -761,14 +763,15 @@
 		dmas = <&gpi_dma2 0 5 3 64 0>,
 			<&gpi_dma2 1 5 3 64 0>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default", "sleep";
+		pinctrl-names = "default", "sleep", "pulldown", "pullup";
 		pinctrl-0 = <&qupv3_se15_i2c_active>;
 		pinctrl-1 = <&qupv3_se15_i2c_sleep>;
+        pinctrl-2 = <&qupv3_se15_i2c_pulldown>;
+        pinctrl-3 = <&qupv3_se15_i2c_pullup>;
 		qcom,wrapper-core = <&qupv3_2>;
 //#ifdef VENDOR_EDIT//Fanhong.Kong@ProDrv.CHG,add 2018/04/20 for SVOOC		
 		qcom,clk-freq-out = <100000>;
 //#endif /*VENDOR_EDIT*/
-//#ifndef VENDOR_EDIT /* tongfeng.Huang@BSP.CHG.Basic, 2018/11/02,  Add for charging */
 		///status = "disabled";
 //#else
 		status = "ok";

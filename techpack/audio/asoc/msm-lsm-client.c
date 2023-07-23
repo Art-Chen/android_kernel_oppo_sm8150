@@ -970,7 +970,7 @@ static int msm_lsm_process_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 #ifdef OPLUS_ARCH_EXTENDS
-	//Le.Li@MultiMedia.AudioDriver.Codec, 2019/04/02, Add for aispeech wakeup
+#ifndef OPLUS_FEATURE_ONEPLUS_MM_LIMIT_SVA_BARGIN
 	if (p_info != NULL) {
 		switch (p_info->param_type) {
 		case LSM_REG_SND_MODEL:
@@ -984,6 +984,7 @@ static int msm_lsm_process_params(struct snd_pcm_substream *substream,
 			break;
 		}
 	}
+#endif
 #endif
 
 	switch (p_info->param_type) {

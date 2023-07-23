@@ -138,10 +138,7 @@ do {                                                    \
 				  SND_JACK_BTN_2 | SND_JACK_BTN_3 | \
 				  SND_JACK_BTN_4 | SND_JACK_BTN_5)
 #define OCP_ATTEMPT 20
-#ifndef OPLUS_ARCH_EXTENDS
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.HEADSETDET.959366, 2020/08/14,
- *Modify for headphone detect.
- */
+#if !defined(OPLUS_ARCH_EXTENDS) || defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 #define HS_DETECT_PLUG_TIME_MS (3 * 1000)
 #else /* OPLUS_ARCH_EXTENDS */
 #define HS_DETECT_PLUG_TIME_MS (5 * 1000)
@@ -439,8 +436,7 @@ enum mbhc_moisture_rref {
 	R_184_KOHM,
 };
 
-#ifdef OPLUS_ARCH_EXTENDS
-/*Zhao.Pan@PSW.MM.AudioDriver.Headset, 2018/11/07, Add audio switch max20328*/
+#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 enum usbc_switch_type {
     NO_USBC_SWITCH = 0,
     FSA4480,
@@ -464,8 +460,7 @@ struct wcd_mbhc_config {
 	int anc_micbias;
 	bool enable_anc_mic_detect;
 	u32 enable_usbc_analog;
-	#ifdef OPLUS_ARCH_EXTENDS
-	/*RiCheng.Wang@MULTIMEDIA.AUDIODRIVER.DRIVER.1825796, 2020/10/17, Add audio switch max20328*/
+	#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 	enum usbc_switch_type switch_type;
 	#endif /* OPLUS_ARCH_EXTENDS */
 	bool moisture_duty_cycle_en;
@@ -555,8 +550,7 @@ struct wcd_mbhc_fn {
 struct wcd_mbhc {
 	/* Delayed work to report long button press */
 	struct delayed_work mbhc_btn_dwork;
-	#ifdef OPLUS_BUG_STABILITY
-	/*lijiang@MULTIMEDIA.AUDIODRIVER.HEADSETSET, 2020/11/21,solve kernel crash when hs pluged and restart phone */
+	#if defined(OPLUS_BUG_STABILITY) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 	struct delayed_work max20328_det_ready_dwork;
 	#endif /* OPLUS_BUG_STABILITY */
 	int buttons_pressed;
@@ -614,6 +608,12 @@ struct wcd_mbhc {
 	struct snd_soc_jack button_jack;
 	struct mutex codec_resource_lock;
 
+	#ifdef OPLUS_FEATURE_FSA4480
+	bool use_usbc_detect;
+	bool usbc_analog_status;
+	struct delayed_work mbhc_usbc_detect_dwork;
+	#endif /* OPLUS_FEATURE_FSA4480 */
+
 	/* Holds codec specific interrupt mapping */
 	const struct wcd_mbhc_intr *intr_ids;
 
@@ -640,8 +640,7 @@ struct wcd_mbhc {
 	int usbc_mode;
 	struct device_node *fsa_np;
 	struct notifier_block fsa_nb;
-	#ifdef OPLUS_ARCH_EXTENDS
-	/*RiCheng.Wang@MULTIMEDIA.AUDIODRIVER.DRIVER.1825796, 2020/10/17, Add audio switch max20328*/
+	#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 	struct device_node *switch_np;
 	struct notifier_block switch_nb;
 	#endif
@@ -649,17 +648,13 @@ struct wcd_mbhc {
 	struct power_supply *usb_psy;
 	struct work_struct usbc_analog_work;
 
-	#ifdef OPLUS_ARCH_EXTENDS
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.HEADSETDET, 2020/07/31,
-	 *Add for mbhc cross connection.
-	 */
+	#if defined(OPLUS_ARCH_EXTENDS) && !defined(OPLUS_FEATURE_OP_SPECIFIC_AUDIO_KERNEL)
 	bool need_cross_conn;
-	#endif /* OPLUS_ARCH_EXTENDS */
-	#ifdef OPLUS_ARCH_EXTENDS
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.HEADSETDET, 2020/08/14, Add for headset detect.*/
 	struct delayed_work hp_detect_work;
 	#endif /* OPLUS_ARCH_EXTENDS */
-
+        #ifdef OPLUS_ARCH_EXTENDS
+        bool headset_bias_alwayon;
+        #endif
 };
 
 void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,

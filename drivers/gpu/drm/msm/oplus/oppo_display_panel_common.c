@@ -5,7 +5,6 @@
 ** Description : oppo display panel common feature
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -14,6 +13,23 @@
 #include "oppo_display_panel_common.h"
 
 int oppo_debug_max_brightness = 0;
+extern int lcd_closebl_flag;
+extern int oppo_dimlayer_hbm;
+extern int oppo_dimlayer_hbm_vblank_count;
+extern atomic_t oppo_dimlayer_hbm_vblank_ref;
+
+struct aod_area {
+	bool enable;
+	int x;
+	int y;
+	int w;
+	int h;
+	int color;
+	int bitdepth;
+	int mono;
+	int gray;
+};
+struct aod_area oppo_aod_area[RAMLESS_AOD_AREA_NUM];
 
 extern int dsi_display_read_panel_reg(struct dsi_display *display, u8 cmd,
 	void *data, size_t len);
@@ -67,6 +83,28 @@ int oppo_display_panel_get_id(void *buf)
 	}
 
 	return ret;
+}
+
+int oplus_display_panel_get_closebl_flag(void *data)
+{
+	uint32_t *closebl_flag = data;
+
+	(*closebl_flag) = lcd_closebl_flag;
+	pr_err("oplus_display_get_closebl_flag = %d\n", lcd_closebl_flag);
+
+	return 0;
+}
+
+int oplus_display_panel_set_closebl_flag(void *data)
+{
+	uint32_t *closebl = data;
+
+	pr_err("lcd_closebl_flag = %d\n", (*closebl));
+	if (1 != (*closebl))
+		lcd_closebl_flag = 0;
+	pr_err("oplus_display_set_closebl_flag = %d\n", lcd_closebl_flag);
+
+	return 0;
 }
 
 int oppo_display_panel_get_max_brightness(void *buf)
@@ -344,7 +382,6 @@ int oppo_display_panel_get_serial_number(void *buf)
 }
 
 #ifdef OPLUS_BUG_STABILITY
-/* xupengcheng@MULTIMEDIA.DISPLAY.LCD.Feature,2020-10-21 optimize osc adaptive */
 int oplus_display_get_panel_parameters(struct dsi_panel *panel,
 	struct dsi_parser_utils *utils)
 {
@@ -381,4 +418,186 @@ int oplus_display_get_panel_parameters(struct dsi_panel *panel,
 
 	return ret;
 }
+
+int oplus_display_update_aod_area_unlock(void)
+{
+	struct dsi_display *display = get_main_display();
+	struct mipi_dsi_device *mipi_device;
+	char payload[RAMLESS_AOD_PAYLOAD_SIZE];
+	int rc = 0;
+	int i;
+
+	if (!display || !display->panel || !display->panel->oppo_priv.is_aod_ramless)
+		return 0;
+
+	if (!dsi_panel_initialized(display->panel))
+		return -EINVAL;
+
+	mipi_device = &display->panel->mipi_device;
+
+	/* enable the clk vote for CMD mode panels */
+	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+		dsi_display_clk_ctrl(display->dsi_clk_handle,
+				DSI_CORE_CLK, DSI_CLK_ON);
+	}
+
+	memset(payload, 0, RAMLESS_AOD_PAYLOAD_SIZE);
+
+	for (i = 0; i < RAMLESS_AOD_AREA_NUM; i++) {
+		struct aod_area *area = &oppo_aod_area[i];
+
+		payload[0] |= (!!area->enable) << (RAMLESS_AOD_AREA_NUM - i - 1);
+		if (area->enable) {
+			int h_start = area->x;
+			int h_block = area->w / 100;
+			int v_start = area->y;
+			int v_end = area->y + area->h;
+			int off = i * 5;
+
+			/* Rect Setting */
+			payload[1 + off] = h_start >> 4;
+			payload[2 + off] = ((h_start & 0xf) << 4) | (h_block & 0xf);
+			payload[3 + off] = v_start >> 4;
+			payload[4 + off] = ((v_start & 0xf) << 4) | ((v_end >> 8) & 0xf);
+			payload[5 + off] = v_end & 0xff;
+
+			/* Mono Setting */
+#define SET_MONO_SEL(index, shift) \
+			if (i == index) \
+			payload[31] |= area->mono << shift;
+
+			SET_MONO_SEL(0, 6);
+			SET_MONO_SEL(1, 5);
+			SET_MONO_SEL(2, 4);
+			SET_MONO_SEL(3, 2);
+			SET_MONO_SEL(4, 1);
+			SET_MONO_SEL(5, 0);
+#undef SET_MONO_SEL
+
+			/* Depth Setting */
+			if (i < 4)
+				payload[32] |= (area->bitdepth & 0x3) << ((3 - i) * 2);
+			else if (i == 4)
+				payload[33] |= (area->bitdepth & 0x3) << 6;
+			else if (i == 5)
+				payload[33] |= (area->bitdepth & 0x3) << 4;
+			/* Color Setting */
+#define SET_COLOR_SEL(index, reg, shift) \
+			if (i == index) \
+			payload[reg] |= (area->color & 0x7) << shift;
+			SET_COLOR_SEL(0, 34, 4);
+			SET_COLOR_SEL(1, 34, 0);
+			SET_COLOR_SEL(2, 35, 4);
+			SET_COLOR_SEL(3, 35, 0);
+			SET_COLOR_SEL(4, 36, 4);
+			SET_COLOR_SEL(5, 36, 0);
+#undef SET_COLOR_SEL
+			/* Area Gray Setting */
+			payload[37 + i] = area->gray & 0xff;
+		}
+	}
+	payload[43] = 0x00;
+
+	rc = mipi_dsi_dcs_write(mipi_device, 0x81, payload, 43);
+	pr_err("dsi_cmd aod_area[%x] updated \n", payload[0]);
+
+
+	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
+		rc = dsi_display_clk_ctrl(display->dsi_clk_handle,
+				DSI_CORE_CLK, DSI_CLK_OFF);
+	}
+
+	return 0;
+}
+
+int oppo_display_set_aod_area(void *buf)
+{
+	struct panel_aod_area_para *para = (struct panel_aod_area_para *)buf;
+	int i, cnt = 0;
+	struct dsi_display *display = get_main_display();
+	if (!display || !display->panel || !display->panel->oppo_priv.is_aod_ramless)
+		return -EINVAL;
+
+	memset(oppo_aod_area, 0, sizeof(struct aod_area) * RAMLESS_AOD_AREA_NUM);
+
+	if (para->size > RAMLESS_AOD_AREA_NUM) {
+		pr_err("aod area size is invalid, size=%d\n", para->size);
+		return -1;
+	}
+
+	pr_info("%s %d\n", __func__, __LINE__);
+	for (i = 0; i < para->size; i++) {
+		struct aod_area *area = &oppo_aod_area[cnt];
+
+		area->x = para->aod_area[i].x;
+		area->y = para->aod_area[i].y;
+		area->w = para->aod_area[i].w;
+		area->h = para->aod_area[i].h;
+		area->color = para->aod_area[i].color;
+		area->bitdepth = para->aod_area[i].bitdepth;
+		area->mono = para->aod_area[i].mono;
+		area->gray = para->aod_area[i].gray;
+		pr_info("%s %d rect[%dx%d-%dx%d]-%d-%d-%d-%x\n", __func__, __LINE__,
+			area->x, area->y, area->w, area->h,
+			area->color, area->bitdepth, area->mono, area->gray);
+		area->enable = true;
+		cnt++;
+	}
+
+	mutex_lock(&display->display_lock);
+	mutex_lock(&display->panel->panel_lock);
+
+	oplus_display_update_aod_area_unlock();
+
+	mutex_unlock(&display->panel->panel_lock);
+	mutex_unlock(&display->display_lock);
+
+	return 0;
+}
+
+int oplus_display_panel_get_brightness(void *buf)
+{
+	uint32_t *brightness = buf;
+	struct dsi_display *display = get_main_display();
+	struct dsi_panel *panel = display->panel;
+
+	if (!display || !display->panel) {
+		pr_err("%s failed to get display\n", __func__);
+		return -EINVAL;
+	}
+
+	(*brightness) = panel->bl_config.bl_level;
+
+	return 0;
+}
+
+int oplus_display_panel_set_dimlayer_hbm(void *data)
+{
+	struct dsi_display *display = get_main_display();
+	struct drm_connector *dsi_connector = display->drm_conn;
+	uint32_t *dimlayer_hbm = data;
+	int err = 0;
+	int value = (*dimlayer_hbm);
+
+	value = !!value;
+	if (oppo_dimlayer_hbm == value)
+		return 0;
+	if (!dsi_connector || !dsi_connector->state || !dsi_connector->state->crtc) {
+		pr_err("[%s]: display not ready\n", __func__);
+	} else {
+		err = drm_crtc_vblank_get(dsi_connector->state->crtc);
+		if (err) {
+			pr_err("failed to get crtc vblank, error=%d\n", err);
+		} else {
+			/* do vblank put after 5 frames */
+			oppo_dimlayer_hbm_vblank_count = 5;
+			atomic_inc(&oppo_dimlayer_hbm_vblank_ref);
+		}
+	}
+	oppo_dimlayer_hbm = value;
+	pr_err("debug for oplus_display_set_dimlayer_hbm set oppo_dimlayer_hbm = %d\n", oppo_dimlayer_hbm);
+
+	return 0;
+}
+
 #endif /* OPLUS_BUG_STABILITY */

@@ -43,7 +43,6 @@ enum {
 	ADM_RTAC_AUDVOL_CAL,
 	ADM_LSM_AUDPROC_PERSISTENT_CAL,
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 	ADM_AUDPROC_PERSISTENT_CAL,
 #endif /* OPLUS_ARCH_EXTENDS */
 	ADM_MAX_CAL_TYPES
@@ -117,8 +116,6 @@ int adm_pack_and_set_one_pp_param(int port_id, int copp_idx,
 				  u8 *param_data);
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 int adm_open(int port, int path, int rate, int mode, int topology,
 			   int perf_mode, uint16_t bits_per_sample,
 			   int app_type, int acdbdev_id, int session_type);
@@ -179,7 +176,6 @@ int adm_get_pp_topo_module_list_v2(int port_id, int copp_idx,
 int adm_set_volume(int port_id, int copp_idx, int volume);
 
 #ifdef OPLUS_FEATURE_KTV
-// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 int adm_set_reverb_param(int port_id, int copp_idx, int32_t* params);
 #endif /* OPLUS_FEATURE_KTV */
 

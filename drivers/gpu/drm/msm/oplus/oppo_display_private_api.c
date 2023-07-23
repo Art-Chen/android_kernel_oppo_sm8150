@@ -5,7 +5,6 @@
 ** Description : oppo display private api implement
 ** Version : 1.0
 ** Date : 2018/03/20
-** Author : Jie.Hu@PSW.MM.Display.Stability
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -18,37 +17,25 @@
 #include "oppo_display_panel_power.h"
 #include "oppo_display_panel_seed.h"
 #include "oppo_display_panel_hbm.h"
-#ifdef OPLUS_FEATURE_LCD_CABC
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-#include "oplus_display_panel_cabc.h"
-#endif /*OPLUS_FEATURE_LCD_CABC*/
 /*
  * we will create a sysfs which called /sys/kernel/oppo_display,
  * In that directory, oppo display private api can be called
  */
 #include <linux/notifier.h>
 #include <linux/msm_drm_notify.h>
+#include "oppo_mm_kevent_fb.h"
 #include <soc/oppo/device_info.h>
 #include "dsi_pwr.h"
 
 extern int hbm_mode;
-#ifdef OPLUS_FEATURE_HDR10
-int hdr10_mode = 0;
-#endif /* OPLUS_FEATURE_HDR10 */
-#ifdef OPLUS_FEATURE_LCD_CABC
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-extern int cabc_mode;
-extern int is_support_cabc;
-#endif /*OPLUS_FEATURE_LCD_CABC*/
-
 int lcd_closebl_flag = 0;
 int lcd_closebl_flag_fp = 0;
-int oppo_request_power_status = OPPO_DISPLAY_POWER_ON;
 int iris_recovery_check_state = -1;
 
 extern int oppo_underbrightness_alpha;
 int oppo_dimlayer_fingerprint_failcount = 0;
 extern int msm_drm_notifier_call_chain(unsigned long val, void *v);
+extern int cmp_display_panel_name(char *istr);
 bool oppo_dc_v2_on = false;
 int oppo_dc2_alpha;
 int oppo_dimlayer_bl_enable_v3 = 0;
@@ -91,11 +78,7 @@ extern enum oppo_display_support_list oppo_display_vendor;
 #define PANEL_TX_MAX_BUF 256
 #define PANEL_CMD_MIN_TX_COUNT 2
 
-DEFINE_MUTEX(oppo_power_status_lock);
 DEFINE_MUTEX(osc_clock_lock);
-#ifdef OPLUS_FEATURE_HDR10
-DEFINE_MUTEX(oppo_hdr10_mode_lock);
-#endif /* OPLUS_FEATURE_HDR10 */
 
 int oppo_set_display_vendor(struct dsi_display *display)
 {
@@ -112,7 +95,6 @@ int oppo_set_display_vendor(struct dsi_display *display)
 	return 0;
 }
 
-/* Sachin@PSW.MM.Display.LCD.Stable, 2020/04/17, Add for dynamic OSC clock */
 int dsi_panel_osc_clk_on(struct dsi_panel *panel) {
 	int rc = 0;
 
@@ -280,7 +262,6 @@ int oppo_display_update_osc_clk(void)
 		}
 	}
 
-	/* xupengcheng@MULTIMEDIA.DISPLAY.LCD.Feature,2020-10-21 optimize osc adaptive */
 	if (!display->panel->oppo_priv.is_osc_support){
 		pr_err("not support osc\n");
 		return 0;
@@ -636,48 +617,6 @@ static ssize_t oppo_display_set_audio_ready(struct device *dev,
 	return count;
 }
 
-#ifdef OPLUS_FEATURE_LCD_CABC
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-static ssize_t oplus_display_set_cabc(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count) {
-	int temp_save = 0;
-	struct dsi_display *display = get_main_display();
-	if (!display)
-		return 0;
-
-	sscanf(buf, "%du", &temp_save);
-	printk(KERN_INFO "%s oplus_display_set_cabc = %d\n", __func__, temp_save);
-
-	if (!is_support_cabc) {
-		 printk(KERN_INFO "This project don't support CABC\n");
-		 return count;
-	}
-
-	if((get_oppo_display_power_status() == OPPO_DISPLAY_POWER_ON) && (display->panel->bl_config.bl_level > 0)) {
-		if(get_main_display() == NULL) {
-			printk(KERN_INFO "oplus_display_set_cabc and main display is null");
-			return count;
-		}
-
-		__oplus_display_set_cabc(temp_save);
-
-		if(cabc_mode == 1) {
-			dsi_display_cabc_ui(get_main_display());
-		} else if (cabc_mode == 2) {
-			dsi_display_cabc_image(get_main_display());
-		} else if (cabc_mode == 3) {
-			dsi_display_cabc_video(get_main_display());
-		} else if (cabc_mode == 0) {
-			dsi_display_cabc_off(get_main_display());
-		}
-	} else {
-		printk(KERN_ERR  "%s oplus_display_set_cabc = %d, but now display panel status is not on\n", __func__, temp_save);
-	}
-	return count;
-}
-#endif/*OPLUS_FEATURE_LCD_CABC*/
-
 static ssize_t oppo_display_get_hbm(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -761,7 +700,8 @@ static ssize_t oppo_display_get_panel_serial_number(struct device *dev,
 	 * retry when found panel_serial_info is abnormal.
 	 */
 	for (i = 0; i < 10; i++) {
-		if(!strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC")) {
+		if(!strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC") ||
+			!strcmp(display->panel->name, "samsung 20331 ams643ye01 amoled fhd+ panel without DSC")) {
 			mutex_lock(&display->display_lock);
 			mutex_lock(&display->panel->panel_lock);
 
@@ -788,8 +728,7 @@ static ssize_t oppo_display_get_panel_serial_number(struct device *dev,
 				continue;
 			}
 			ret = dsi_display_read_panel_reg(get_main_display(), 0xD8, read, 13);
-		} else if((!strcmp(display->panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")) ||
-				(!strcmp(display->panel->name, "samsung s6e3fc2x01 amoled fhd+ panel with DSC"))) {
+		} else if(!strcmp(display->panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")) {
 			ret = dsi_display_read_panel_reg(get_main_display(), 0xA1, read, 16);
 		} else {
 			ret = dsi_display_read_panel_reg(get_main_display(), 0xA1, read, 17);
@@ -808,10 +747,10 @@ static ssize_t oppo_display_get_panel_serial_number(struct device *dev,
 		 *  exp              3      2       C       B       29      37
 		 *  Yyyy,mm,dd      2014   2m      12d     11h     41min   55sec
 		*/
-		if(!strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC")) {
+		if(!strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC") ||
+			!strcmp(display->panel->name, "samsung 20331 ams643ye01 amoled fhd+ panel without DSC")) {
 			panel_serial_info.reg_index = 7;
-		} else if((!strcmp(display->panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")) ||
-				(!strcmp(display->panel->name, "samsung s6e3fc2x01 amoled fhd+ panel with DSC"))) {
+		} else if(!strcmp(display->panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")) {
 			panel_serial_info.reg_index = 11;
 		} else {
 			panel_serial_info.reg_index = 10;
@@ -1077,32 +1016,6 @@ static ssize_t oppo_display_dump_info(struct device *dev,
 	return ret;
 }
 
-#ifdef OPLUS_FEATURE_LCD_CABC
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-static ssize_t oplus_display_get_cabc(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	printk(KERN_INFO "oplus_display_get_cabc = %d\n", cabc_mode);
-
-	if (!is_support_cabc) {
-		 printk(KERN_INFO "This project don't support CABC\n");
-		 return 0;
-	}
-	return sprintf(buf, "%d\n", cabc_mode);
-}
-#endif /*OPLUS_FEATURE_LCD_CABC*/
-
-int __oppo_display_set_power_status(int status)
-{
-	mutex_lock(&oppo_power_status_lock);
-
-	if (status != oppo_request_power_status) {
-		oppo_request_power_status = status;
-	}
-
-	mutex_unlock(&oppo_power_status_lock);
-	return 0;
-}
 static ssize_t oppo_display_get_power_status(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1530,14 +1443,17 @@ static ssize_t oppo_display_get_dc_dim_alpha(struct device *dev,
 	int ret = 0;
 	struct dsi_display *display = get_main_display();
 
+	if (!display || !display->panel) {
+		pr_err("%s main display is NULL\n", __func__);
+		return sprintf(buf, "%d\n", 0);
+	}
+
 	if (display->panel->is_hbm_enabled ||
 		get_oppo_display_power_status() != OPPO_DISPLAY_POWER_ON) {
 		ret = 0;
 	}
-
 	if (oppo_dc2_alpha != 0) {
 		ret = oppo_dc2_alpha;
-
 	} else if (oppo_underbrightness_alpha != 0) {
 		ret = oppo_underbrightness_alpha;
 
@@ -1763,6 +1679,7 @@ error:
 
 static bool oppo_datadimming_v2_need_flush = false;
 static bool oppo_datadimming_v2_need_sync = false;
+int dc_bl_temp = 0;
 void oppo_panel_process_dimming_v2_post(struct dsi_panel *panel,
 	bool force_disable)
 {
@@ -1830,6 +1747,20 @@ int oppo_panel_process_dimming_v2(struct dsi_panel *panel, int bl_lvl,
 
 	} else if (oppo_seed_backlight) {
 		pr_err("Exit DC backlight v2\n");
+		if (display->panel->oppo_priv.prj_flag) {
+			if (bl_lvl == 0) {
+				int rc = 0;
+				struct mipi_dsi_device *dsi = &panel->mipi_device;
+				if(dsi) {
+					rc = mipi_dsi_dcs_set_display_brightness(dsi, 0);
+					if (rc < 0) {
+						pr_err("111 failed to update dcs backlight:%d\n", bl_lvl);
+					}
+				} else {
+					pr_err("dsi=NULL, not to set display brightness=0\n");
+				}
+			}
+		}
 		oppo_first_set_seed = false;
 		oppo_dc_v2_on = false;
 		oppo_seed_backlight = 0;
@@ -1867,9 +1798,17 @@ int oppo_panel_process_dimming_v2(struct dsi_panel *panel, int bl_lvl,
 		}
 		if (!strcmp(panel->name, "samsung ams643xf01 amoled fhd+ panel without DSC")
 			|| !strcmp(panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")
-			|| !strcmp(panel->oppo_priv.vendor_name, "ams643xy01"))
+			|| !strcmp(panel->oppo_priv.vendor_name, "ams643xy01")
+			|| cmp_display_panel_name("S6E3FC2X01")
+			|| cmp_display_panel_name("SOFEF03F") ||cmp_display_panel_name("S6E3FC2")
+		    || cmp_display_panel_name("S6E3HC2"))
 			oppo_panel_process_dimming_v2_post(panel, force_disable);
 
+		if (display->panel->oppo_priv.prj_flag) {
+			dc_bl_temp = bl_lvl;
+			if (!strcmp(panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC"))
+				oppo_panel_process_dimming_v2_post(panel, force_disable);
+		}
 	}
 
 	return bl_lvl;
@@ -1924,13 +1863,18 @@ static ssize_t oppo_display_set_dimlayer_enable(struct device *dev,
 		}
 
 		if (!strcmp(display->panel->name, "samsung amb655uv01 amoled fhd+ panel no DSC")
+			|| !strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC")
 			|| !strcmp(display->panel->name, "samsung ams643xf01 amoled fhd+ panel without DSC")
 			|| !strcmp(display->panel->oppo_priv.vendor_name, "ams643xy01")
 			|| !strcmp(display->panel->name, "samsung sofef03f_m amoled fhd+ panel with DSC")) {
 			oppo_dimlayer_bl_enable_v2 = enable;
 		} else {
-			if(strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC"))
+			if(!strcmp(display->panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC") ||
+				!strcmp(display->panel->name, "samsung 20331 ams643ye01 amoled fhd+ panel without DSC")) {
+				/* do nothing */
+			} else {
 				oppo_dimlayer_bl_enable = enable;
+			}
 		}
 
 		mutex_unlock(&display->display_lock);
@@ -1982,7 +1926,6 @@ static ssize_t oppo_display_set_dimlayer_hbm(struct device *dev,
 	oppo_dimlayer_hbm = value;
 
 #ifdef VENDOR_EDIT
-	/* Hu Jie@PSW.MM.Display.Lcd.Stability, 2019-09-27, add log at display key evevnt */
 	pr_err("debug for oppo_display_set_dimlayer_hbm set oppo_dimlayer_hbm = %d\n",
 		oppo_dimlayer_hbm);
 #endif
@@ -2044,7 +1987,6 @@ static ssize_t oppo_display_set_esd_status(struct device *dev,
 	sscanf(buf, "%du", &enable);
 
 #ifdef VENDOR_EDIT
-	/* Hu Jie@PSW.MM.Display.Lcd.Stability, 2019-09-27, add log at display key evevnt */
 	pr_err("debug for oppo_display_set_esd_status, the enable value = %d\n",
 		enable);
 #endif
@@ -2125,15 +2067,19 @@ int oppo_onscreenfp_status = 0;
 ktime_t oppo_onscreenfp_pressed_time;
 u32 oppo_onscreenfp_vblank_count = 0;
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 int oppo_display_mode = 1;
+atomic_t aod_onscreenfp_status = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(oppo_aod_wait);
 static int failsafe_mode = 0;
 DEFINE_MUTEX(oppo_failsafe_lock);
 
 bool is_oppo_display_aod_mode(void)
 {
-	return !oppo_onscreenfp_status && !oppo_display_mode;
+	struct dsi_display *display = get_main_display();
+	if (display->panel->oppo_priv.prj_flag)
+		return (!atomic_read(&aod_onscreenfp_status)) && (!oppo_display_mode);
+	else
+		return !oppo_onscreenfp_status && !oppo_display_mode;
 }
 
 bool is_oppo_aod_ramless(void)
@@ -2181,7 +2127,6 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	int i;
 	bool if_con = false;
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	struct drm_display_mode *cmd_mode = NULL;
 	struct drm_display_mode *vid_mode = NULL;
 	struct drm_display_mode *mode = NULL;
@@ -2202,20 +2147,20 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	}
 
 	pr_err("notify fingerpress %s\n", onscreenfp_status ? "on" : "off");
+	if (!display->panel->oppo_priv.prj_flag) {
+		if (OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene()) {
+			if (onscreenfp_status) {
+				on_time = ktime_get();
+			} else {
+				ktime_t now = ktime_get();
+				ktime_t delta = ktime_sub(now, on_time);
 
-	if (OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene()) {
-		if (onscreenfp_status) {
-			on_time = ktime_get();
-		} else {
-			ktime_t now = ktime_get();
-			ktime_t delta = ktime_sub(now, on_time);
-
-			if (ktime_to_ns(delta) < 300000000) {
-				msleep(300 - (ktime_to_ns(delta) / 1000000));
+				if (ktime_to_ns(delta) < 300000000) {
+					msleep(300 - (ktime_to_ns(delta) / 1000000));
+				}
 			}
 		}
 	}
-
 	vblank_get = drm_crtc_vblank_get(dsi_connector->state->crtc);
 
 	if (vblank_get) {
@@ -2223,10 +2168,14 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	}
 
 	oppo_onscreenfp_status = onscreenfp_status;
-
-	if_con = onscreenfp_status && (OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene());
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
+	if((0 == oppo_display_mode) && onscreenfp_status) {
+		atomic_set(&aod_onscreenfp_status, onscreenfp_status);
+	}
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
+
+	if_con = false;
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
 	if_con = if_con && !display->panel->oppo_priv.is_aod_ramless;
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 	if (if_con) {
@@ -2255,14 +2204,12 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	}
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	if (!display->panel->oppo_priv.is_aod_ramless) {
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 		oppo_onscreenfp_vblank_count = drm_crtc_vblank_count(
 			dsi_connector->state->crtc);
 		oppo_onscreenfp_pressed_time = ktime_get();
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	}
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 
@@ -2278,7 +2225,6 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	crtc = dsi_connector->state->crtc;
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	cur_mode = &crtc->state->mode;
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 
@@ -2291,12 +2237,13 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	}
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	if (display->panel->oppo_priv.is_aod_ramless) {
 		struct drm_display_mode *set_mode = NULL;
 
-		if (oppo_display_mode == 2)
+		if (oppo_display_mode == 2) {
+			pr_info("%s: return for oppo_display_mode == 2\n", __func__);
 			goto error;
+		}
 
 		list_for_each_entry(mode, &dsi_connector->modes, head) {
 			if (drm_mode_vrefresh(mode) == 0)
@@ -2308,8 +2255,9 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 			if (mode->flags & DRM_MODE_FLAG_CMD_MODE_PANEL)
 				cmd_mode = mode;
 		}
+		if (!display->panel->oppo_priv.prj_flag)
+			set_mode = oppo_display_mode ? vid_mode : cmd_mode;
 
-		set_mode = oppo_display_mode ? vid_mode : cmd_mode;
 		set_mode = onscreenfp_status ? vid_mode : set_mode;
 		if (!crtc_state->active || !crtc_state->enable)
 			goto error;
@@ -2333,7 +2281,6 @@ static ssize_t oppo_display_notify_fp_press(struct device *dev,
 	drm_atomic_state_put(state);
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	if (display->panel->oppo_priv.is_aod_ramless && mode_changed) {
 		for (i = 0; i < priv->num_crtcs; i++) {
 			if (priv->disp_thread[i].crtc_id == crtc->base.id) {
@@ -2443,8 +2390,8 @@ static ssize_t oppo_display_get_ccd_check(struct device *dev,
 	}
 
 	if (!(display && display->panel->oppo_priv.vendor_name) ||
-		!strcmp(display->panel->oppo_priv.vendor_name, "NT37800") ||
-		!strcmp(display->panel->oppo_priv.vendor_name, "SOFEF03F_M")) {
+		!strcmp(display->panel->oppo_priv.vendor_name, "AMS643YE01") ||
+		!strcmp(display->panel->oppo_priv.vendor_name, "NT37800")) {
 		ccd_check = 0;
 		goto end;
 	}
@@ -2621,7 +2568,6 @@ int dsi_display_oppo_set_power(struct drm_connector *connector,
 				mutex_lock(&display->panel->panel_lock);
 				rc = dsi_panel_tx_cmd_set(display->panel, DSI_CMD_AOD_HBM_OFF);
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 				if (display->panel->oppo_priv.is_aod_ramless) {
 					oppo_update_aod_light_mode_unlock(display->panel);
 				}
@@ -2843,7 +2789,6 @@ static ssize_t oppo_display_set_panel_pwr(struct device *dev,
 }
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 struct aod_area {
 	bool enable;
 	int x;
@@ -2860,7 +2805,7 @@ struct aod_area {
 #define RAMLESS_AOD_PAYLOAD_SIZE	100
 static struct aod_area oppo_aod_area[RAMLESS_AOD_AREA_NUM];
 
-int oppo_display_update_aod_area_unlock(void)
+static int oppo_display_update_aod_area_unlock(void)
 {
 	struct dsi_display *display = get_main_display();
 	struct mipi_dsi_device *mipi_device;
@@ -3064,6 +3009,7 @@ static ssize_t oppo_display_set_video(struct device *dev,
 	int vblank_get = -EINVAL;
 	int err = 0;
 	int i;
+	int power_stat = get_oppo_display_power_status();
 
 	if (!display || !display->panel) {
 		pr_err("failed to find dsi display\n");
@@ -3075,6 +3021,13 @@ static ssize_t oppo_display_set_video(struct device *dev,
 
 	if (!dsi_connector || !dsi_connector->state || !dsi_connector->state->crtc) {
 		pr_err("[%s]: display not ready\n", __func__);
+		return count;
+	}
+
+	if(atomic_read(&aod_onscreenfp_status) &&
+			((OPPO_DISPLAY_POWER_DOZE == power_stat) ||
+			 (OPPO_DISPLAY_POWER_DOZE_SUSPEND == power_stat))) {
+		pr_info("%s, drop this set_video\n", __func__);
 		return count;
 	}
 
@@ -3096,6 +3049,7 @@ static ssize_t oppo_display_set_video(struct device *dev,
 		goto error;
 
 	oppo_display_mode = mode_id;
+	atomic_set(&aod_onscreenfp_status, (1 == mode_id) ? 0 : oppo_onscreenfp_status);
 	state->acquire_ctx = mode_config->acquire_ctx;
 	crtc = dsi_connector->state->crtc;
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
@@ -3321,102 +3275,6 @@ static ssize_t oppo_display_get_failsafe(struct device *dev,
 }
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 
-#ifdef OPLUS_FEATURE_HDR10
-int __oppo_display_set_hdr10_mode(int mode) {
-	mutex_lock(&oppo_hdr10_mode_lock);
-	if(mode != hdr10_mode) {
-		hdr10_mode = mode;
-	}
-	mutex_unlock(&oppo_hdr10_mode_lock);
-	return 0;
-}
-
-int dsi_panel_set_hdr10_mode(struct dsi_panel *panel, int mode) {
-	int rc = 0;
-
-	if (!panel) {
-		pr_err("Invalid params\n");
-		return -EINVAL;
-	}
-	mutex_lock(&panel->panel_lock);
-	if (!dsi_panel_initialized(panel)) {
-		pr_err("dsi_panel_aod_low_light_mode is not init\n");
-		rc = -EINVAL;
-		goto error;
-	}
-	if(mode) {
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HDR10_SEED_MODE);
-	} else {
-        	rc = dsi_panel_seed_mode_unlock(panel, seed_mode);
-	}
-	if (rc) {
-		pr_err("[%s] failed to send dsi_panel_set_hdr10_mode cmds, rc=%d\n",
-		       panel->name, rc);
-	}
-
-error:
-	mutex_unlock(&panel->panel_lock);
-	return rc;
-}
-
-static ssize_t oppo_display_get_hdr10_mode(struct device *dev,
-struct device_attribute *attr, char *buf) {
-	printk(KERN_INFO "hdr10_mode = %d\n", hdr10_mode);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n", hdr10_mode);
-}
-static ssize_t oppo_display_set_hdr10_mode(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count) {
-	struct dsi_display *display = get_main_display();
-	int temp_save = 0;
-	int ret = 0;
-
-	sscanf(buf, "%du", &temp_save);
-
-	if (get_oppo_display_power_status() == OPPO_DISPLAY_POWER_OFF)
-		return count;
-
-	if (!display) {
-		printk(KERN_INFO "oppo_set_aod_light_mode and main display is null");
-		return -EINVAL;
-	}
-
-	if (display->panel->is_hbm_enabled) {
-		pr_err("%s error panel->is_hbm_enabled\n", __func__);
-		return -EINVAL;
-	}
-
-	__oppo_display_set_hdr10_mode(temp_save);
-
-	mutex_lock(&display->display_lock);
-	/* enable the clk vote for CMD mode panels */
-	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
-		dsi_display_clk_ctrl(display->dsi_clk_handle,
-			DSI_CORE_CLK, DSI_CLK_ON);
-	}
-
-	ret = dsi_panel_set_hdr10_mode(display->panel, hdr10_mode);
-	if (ret) {
-		pr_err("[%s] failed to DSI_CMD_HDR10_SEED_MODE, rc=%d\n",
-			display->name, ret);
-	}
-
-	if (display->config.panel_mode == DSI_OP_CMD_MODE) {
-	ret = dsi_display_clk_ctrl(display->dsi_clk_handle,
-				DSI_CORE_CLK, DSI_CLK_OFF);
-	}
-	mutex_unlock(&display->display_lock);
-
-	if (ret) {
-		pr_err("failed to set aod light status ret=%d", ret);
-		return ret;
-	}
-
-	return count;
-}
-#endif /* OPLUS_FEATURE_HDR10 */
-
 static struct kobject *oppo_display_kobj;
 
 static DEVICE_ATTR(hbm, S_IRUGO | S_IWUSR, oppo_display_get_hbm,
@@ -3480,19 +3338,11 @@ static DEVICE_ATTR(panel_pwr, S_IRUGO | S_IWUSR, oppo_display_get_panel_pwr,
 static DEVICE_ATTR(mipi_clk_rate_hz, S_IRUGO|S_IWUSR, oppo_display_get_mipi_clk_rate_hz, NULL);
 static DEVICE_ATTR(osc_clock, S_IRUGO|S_IWUSR, oppo_display_get_osc_clk,
 	oppo_display_set_osc_clk);
-#ifdef OPLUS_FEATURE_HDR10
-static DEVICE_ATTR(hdr10, S_IRUGO|S_IWUSR, oppo_display_get_hdr10_mode, oppo_display_set_hdr10_mode);
-#endif /* OPLUS_FEATURE_HDR10 */
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 static DEVICE_ATTR(aod_area, S_IRUGO|S_IWUSR, oppo_display_get_aod_area, oppo_display_set_aod_area);
 static DEVICE_ATTR(video, S_IRUGO|S_IWUSR, oppo_display_get_video, oppo_display_set_video);
 static DEVICE_ATTR(failsafe, S_IRUGO|S_IWUSR, oppo_display_get_failsafe, oppo_display_set_failsafe);
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
-#ifdef OPLUS_FEATURE_LCD_CABC
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-static DEVICE_ATTR(LCM_CABC, S_IRUGO|S_IWUSR, oplus_display_get_cabc, oplus_display_set_cabc);
-#endif /*OPLUS_FEATURE_LCD_CABC*/
 
 /*
  * Create a group of attributes so that we can create and destroy them all
@@ -3531,19 +3381,11 @@ static struct attribute *oppo_display_attrs[] = {
 	&dev_attr_panel_pwr.attr,
 	&dev_attr_mipi_clk_rate_hz.attr,
 	&dev_attr_osc_clock.attr,
-#ifdef OPLUS_FEATURE_HDR10
-	&dev_attr_hdr10.attr,
-#endif /* OPLUS_FEATURE_HDR10 */
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	&dev_attr_aod_area.attr,
 	&dev_attr_video.attr,
 	&dev_attr_failsafe.attr,
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
-#ifdef OPLUS_FEATURE_LCD_CABC
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-	&dev_attr_LCM_CABC.attr,
-#endif /*OPLUS_FEATURE_LCD_CABC*/
 	NULL,	/* need to NULL terminate the list of attributes */
 };
 
@@ -3576,12 +3418,13 @@ static int __init oppo_display_private_api_init(void)
 		return -EPROBE_DEFER;
 	}
 
-	oppo_display_kobj = kobject_create_and_add("oppo_display", kernel_kobj);
+	oppo_display_kobj = kobject_create_and_add("oplus_display", kernel_kobj);
 
 	if (!oppo_display_kobj) {
 		return -ENOMEM;
 	}
 
+	mm_kevent_init();
 	/* Create the files associated with this kobject */
 	retval = sysfs_create_group(oppo_display_kobj, &oppo_display_attr_group);
 
@@ -3609,9 +3452,58 @@ error_remove_sysfs_group:
 error_remove_kobj:
 	kobject_put(oppo_display_kobj);
 	oppo_display_kobj = NULL;
+	mm_kevent_deinit();
 
 	return retval;
 }
+
+
+int oplus_display_panel_set_dimlayer_enable(void *data)
+{
+	struct dsi_display *display = NULL;
+	struct drm_connector *dsi_connector = NULL;
+	uint32_t *dimlayer_enable = data;
+
+	display = get_main_display();
+	if (!display || !display->panel) {
+		pr_err("%s get_main_display failed \n", __func__);
+		return -EINVAL;
+	}
+	pr_err("[%s]: Enter DC\n", __func__);
+
+	dsi_connector = display->drm_conn;
+	if (display && display->name) {
+		int enable = (*dimlayer_enable);
+		int err = 0;
+		mutex_lock(&display->display_lock);
+		if (!dsi_connector || !dsi_connector->state || !dsi_connector->state->crtc) {
+			pr_err("[%s]: display not ready\n", __func__);
+		} else {
+			err = drm_crtc_vblank_get(dsi_connector->state->crtc);
+			if (err) {
+				pr_err("failed to get crtc vblank, error=%d\n", err);
+			} else {
+				/* do vblank put after 7 frames */
+				oppo_datadimming_vblank_count = 7;
+				atomic_inc(&oppo_datadimming_vblank_ref);
+			}
+		}
+
+		usleep_range(17000, 17100);
+		if (!strcmp(display->panel->oppo_priv.vendor_name, "ANA6706")) {
+			oppo_dimlayer_bl_enable = enable;
+		} else {
+			if (!strcmp(display->name, "qcom,mdss_dsi_oppo19101boe_nt37800_1080_2400_cmd"))
+				oppo_dimlayer_bl_enable_v3 = enable;
+			else
+				oppo_dimlayer_bl_enable_v2 = enable;
+		}
+		mutex_unlock(&display->display_lock);
+	}
+
+	return 0;
+}
+
 
 static void __exit oppo_display_private_api_exit(void)
 {
@@ -3620,9 +3512,10 @@ static void __exit oppo_display_private_api_exit(void)
 	sysfs_remove_link(oppo_display_kobj, "panel");
 	sysfs_remove_group(oppo_display_kobj, &oppo_display_attr_group);
 	kobject_put(oppo_display_kobj);
+	mm_kevent_deinit();
 }
 
 module_init(oppo_display_private_api_init);
 module_exit(oppo_display_private_api_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Hujie <>");
+MODULE_AUTHOR("Hujie <hujie@oppo.com>");

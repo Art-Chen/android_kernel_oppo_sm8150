@@ -5,7 +5,6 @@
 ** Description : oppo dc_diming feature
 ** Version : 1.0
 ** Date : 2020/04/15
-** Author : Qianxu@MM.Display.LCD Driver
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -16,6 +15,8 @@
 #include "oppo_dc_diming.h"
 #include "oppo_onscreenfingerprint.h"
 #include "oppo_aod.h"
+#include "oppo_display_panel_seed.h"
+#include "sde_trace.h"
 
 
 int oppo_dimlayer_bl = 0;
@@ -23,6 +24,8 @@ int oppo_dimlayer_bl_enabled = 0;
 int oppo_datadimming_v3_skip_frame = 2;
 int oppo_panel_alpha = 0;
 int oppo_underbrightness_alpha = 0;
+int fod_dimlayer_flag = -1;                 /*Flag to check if FOD dimlayer is about to be disabled or enabled*/
+					    /*-1 = undefined; 1 = enabling dimlayer; 0 = disabling dimlayer*/
 static struct dsi_panel_cmd_set oppo_priv_seed_cmd_set;
 
 extern int oppo_dimlayer_bl_on_vblank;
@@ -46,9 +49,11 @@ extern int oppo_panel_alpha;
 extern oppo_dc_v2_on;
 extern ktime_t oppo_backlight_time;
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 extern int oppo_display_mode;
+extern atomic_t aod_onscreenfp_status;
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
+extern int cmp_display_panel_name(char *istr);
+extern int seed_mode;
 
 static struct oppo_brightness_alpha brightness_seed_alpha_lut_dc[] = {
 	{0, 0xff},
@@ -138,6 +143,39 @@ error_free_arr_32:
 	kfree(arr_32);
 error:
 	return rc;
+}
+
+extern void oplus_dsi_display_change_te_irq_status(void *disp, bool enable);
+
+int oplus_dsi_display_enable_and_waiting_for_next_te_irq(void)
+{
+	int const switch_te_timeout = msecs_to_jiffies(18);
+	struct dsi_display *display = get_main_display();
+	SDE_ATRACE_BEGIN("wait_te_irq");
+	/* enable te irq */
+
+	if (display->panel->cur_mode->timing.refresh_rate == 60) {
+		msleep(9);
+	} else if (display->panel->cur_mode->timing.refresh_rate == 90) {
+		msleep(11);
+	}
+
+	oplus_dsi_display_change_te_irq_status(display, true);
+	pr_info("Waiting for the next TE to switch\n");
+
+	display->vsync_switch_pending = true;
+	reinit_completion(&display->switch_te_gate);
+
+	if (!wait_for_completion_timeout(&display->switch_te_gate, switch_te_timeout)) {
+		DSI_ERR("hbm vsync switch TE check failed\n");
+		oplus_dsi_display_change_te_irq_status(display, false);
+		return -EINVAL;
+	}
+	/* disable te irq */
+	oplus_dsi_display_change_te_irq_status(display, false);
+	SDE_ATRACE_END("wait_te_irq");
+
+	return 0;
 }
 
 int sde_connector_update_backlight(struct drm_connector *connector, bool post)
@@ -282,10 +320,10 @@ done:
 	return 0;
 }
 
-#ifdef OPLUS_FEATURE_90FPS_GLOBAL_HBM
-/*xupengcheng@MULTIMEDIA.DISPLAY.LCD, 2020/12/29, add for samsung 90fps Global HBM backlight issue*/
+#ifdef OPLUS_BUG_STABILITY
 extern u32 flag_writ;
-#endif /*OPLUS_FEATURE_90FPS_GLOBAL_HBM*/
+#endif /*OPLUS_BUG_STABILITY*/
+
 int sde_connector_update_hbm(struct drm_connector *connector)
 {
 	struct sde_connector *c_conn = to_sde_connector(connector);
@@ -344,11 +382,10 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 
 		pr_err("OnscreenFingerprint mode: %s",
 		       fingerprint_mode ? "Enter" : "Exit");
-
+		fod_dimlayer_flag = fingerprint_mode;
 		dsi_display->panel->is_hbm_enabled = fingerprint_mode;
 		if (fingerprint_mode) {
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 			if (!dsi_display->panel->oppo_priv.is_aod_ramless || oppo_display_mode) {
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 				mutex_lock(&dsi_display->panel->panel_lock);
@@ -372,7 +409,6 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 					usleep_range(frame_time_us, frame_time_us + 100);
 				}
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 				else if (dsi_display->panel->oppo_priv.is_aod_ramless) {
 					ktime_t delta = ktime_sub(ktime_get(), oppo_backlight_time);
 					s64 delta_us = ktime_to_us(delta);
@@ -389,11 +425,14 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 								current_vblank != drm_crtc_vblank_count(crtc),
 								msecs_to_jiffies(17));
 					}
-					if (!strcmp(panel->oppo_priv.vendor_name, "AMS643YE01"))
-						usleep_range(4500,4600);
+					if (!strcmp(panel->oppo_priv.vendor_name, "AMS643YE01") || cmp_display_panel_name("SOFEF03F_M"))
+						usleep_range(5500, 5600);
+					if(cmp_display_panel_name("S6E3HC2"))   /*For 18821 and 19801*/
+						usleep_range(6500, 6600);
 					vblank = panel->cur_mode->priv_info->fod_on_vblank;
 					target_vblank = drm_crtc_vblank_count(crtc) + vblank;
 					rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_ON);
+
 
 					if (vblank) {
 						ret = wait_event_timeout(*drm_crtc_vblank_waitqueue(crtc),
@@ -417,10 +456,19 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 					return rc;
 				}
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 			}
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 		} else {
+			bool aod_hbm_off = true;
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
+			if(dsi_display->panel->oppo_priv.is_aod_ramless) {
+				if(atomic_read(&aod_onscreenfp_status)) {
+					aod_hbm_off = false;
+					pr_err("%s, skip AOD_HBM_OFF for ramless panel\n", __func__);
+				}
+			}
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
+
 			mutex_lock(&dsi_display->panel->panel_lock);
 
 			if (!dsi_display->panel->panel_initialized) {
@@ -435,22 +483,26 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 			ret = wait_event_timeout(*drm_crtc_vblank_waitqueue(crtc),
 					current_vblank != drm_crtc_vblank_count(crtc),
 					msecs_to_jiffies(17));
+			/*add for solve hbm backlight issue*/
+			flag_writ = 3;
 
-			oppo_skip_datadimming_sync = true;
-			oppo_panel_update_backlight_unlock(panel);
-			oppo_skip_datadimming_sync = false;
-
+			if(!dsi_display->panel->oppo_priv.prj_flag) {
+				oppo_skip_datadimming_sync = true;
+				oppo_panel_update_backlight_unlock(panel);
+				oppo_skip_datadimming_sync = false;
+			}
+			fod_dimlayer_flag = fingerprint_mode;
 			vblank = panel->cur_mode->priv_info->fod_off_vblank;
 			target_vblank = drm_crtc_vblank_count(crtc) + vblank;
 
 			dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
 					     DSI_CORE_CLK, DSI_CLK_ON);
-			if(OPPO_DISPLAY_AOD_HBM_SCENE == get_oppo_display_scene()) {
+			if (OPPO_DISPLAY_AOD_HBM_SCENE == get_oppo_display_scene()) {
 				if (OPPO_DISPLAY_POWER_DOZE_SUSPEND == get_oppo_display_power_status() ||
-				    OPPO_DISPLAY_POWER_DOZE == get_oppo_display_power_status()) {
+					OPPO_DISPLAY_POWER_DOZE == get_oppo_display_power_status()) {
 					rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_OFF);
+
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 					if (dsi_display->panel->oppo_priv.is_aod_ramless) {
 						oppo_update_aod_light_mode_unlock(panel);
 					}
@@ -458,9 +510,18 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 					set_oppo_display_scene(OPPO_DISPLAY_AOD_SCENE);
 				} else {
 					rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_SET_NOLP);
+
 					/* set nolp would exit hbm, restore when panel status on hbm */
-					if(panel->bl_config.bl_level > panel->bl_config.brightness_normal_max_level)
-						rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER_SWITCH);
+					if(panel->bl_config.bl_level > panel->bl_config.brightness_normal_max_level) {
+						if (!strcmp(panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC") ||
+							!strcmp(panel->name, "samsung 20331 ams643ye01 amoled fhd+ panel without DSC")) {
+							rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER1_SWITCH);
+							oplus_dsi_display_enable_and_waiting_for_next_te_irq();
+							rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER2_SWITCH);
+						} else {
+							rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER_SWITCH);
+						}
+					}
 					oppo_panel_update_backlight_unlock(panel);
 					if (oppo_display_get_hbm_mode()) {
 						rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_ON);
@@ -470,25 +531,40 @@ int sde_connector_update_hbm(struct drm_connector *connector)
 			} else if (oppo_display_get_hbm_mode()) {
 				/* Do nothing to skip hbm off */
 			} else if (OPPO_DISPLAY_AOD_SCENE == get_oppo_display_scene()) {
-				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_OFF);
+				if(aod_hbm_off) {
+					rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_AOD_HBM_OFF);
+
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
-				if (dsi_display->panel->oppo_priv.is_aod_ramless) {
-					oppo_update_aod_light_mode_unlock(panel);
-				}
+					if (dsi_display->panel->oppo_priv.is_aod_ramless) {
+						oppo_update_aod_light_mode_unlock(panel);
+					}
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
+				}
 			} else {
 				rc = dsi_panel_tx_cmd_set(dsi_display->panel, DSI_CMD_HBM_OFF);
-				if(panel->bl_config.bl_level > panel->bl_config.brightness_normal_max_level)
-					rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER_SWITCH);
+				/*add for hbm mode*/
+				if(panel->bl_config.bl_level > panel->bl_config.brightness_normal_max_level) {
+					if (!strcmp(panel->name, "samsung 20261 ams643ye01 amoled fhd+ panel without DSC") ||
+						!strcmp(panel->name, "samsung 20331 ams643ye01 amoled fhd+ panel without DSC")) {
+						rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER1_SWITCH);
+						oplus_dsi_display_enable_and_waiting_for_next_te_irq();
+						rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER2_SWITCH);
+					} else {
+						rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_HBM_ENTER_SWITCH);
+					}
+				}
 				dsi_panel_set_backlight(panel, panel->bl_config.bl_level);
 			}
-			#ifdef OPLUS_FEATURE_90FPS_GLOBAL_HBM
-			/*xupengcheng@MULTIMEDIA.DISPLAY.LCD, 2020/12/29, add for samsung 90fps Global HBM backlight issue*/
-			flag_writ = 3;
-			#endif /*OPLUS_FEATURE_90FPS_GLOBAL_HBM*/
+
 			dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
 					     DSI_CORE_CLK, DSI_CLK_OFF);
+
+			if(dsi_display->panel->oppo_priv.prj_flag) {
+				oppo_skip_datadimming_sync = true;
+				oppo_panel_update_backlight_unlock(panel);
+				oppo_skip_datadimming_sync = false;
+			}
+
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (vblank) {
 				ret = wait_event_timeout(*drm_crtc_vblank_waitqueue(crtc),
@@ -663,6 +739,12 @@ int oppo_display_panel_get_dim_dc_alpha(void *buf) {
 	int ret = 0;
 	unsigned int *temp_dim_alpha = buf;
 	struct dsi_display *display = get_main_display();
+
+	if (!display || !display->panel) {
+		pr_err("%s main display is NULL\n", __func__);
+		(*temp_dim_alpha) = 0;
+		return 0;
+	}
 
 	if (display->panel->is_hbm_enabled ||
 		get_oppo_display_power_status() != OPPO_DISPLAY_POWER_ON) {
