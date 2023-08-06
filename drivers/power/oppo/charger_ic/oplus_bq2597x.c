@@ -449,7 +449,7 @@ int bq2597x_hardware_init_svooc(void) {
 	ret = bq2597x_write_byte(bq, 0x5, 0x48);
 	ret = bq2597x_write_byte(bq, 0x6, 0x5a);
 	ret = bq2597x_write_byte(bq, 0x7, 0xda);
-	ret = bq2597x_write_byte(bq, 0x8, 0x12);
+	ret = bq2597x_write_byte(bq, 0x8, 0x13);
 	ret = bq2597x_write_byte(bq, 0x9, 0x9c);
 	ret = bq2597x_write_byte(bq, 0x0a, 0x68);
 	ret = bq2597x_write_byte(bq, 0x0b, 0xc8);
@@ -458,12 +458,12 @@ int bq2597x_hardware_init_svooc(void) {
 	ret = bq2597x_write_byte(bq, 0x0e, 0x48);
 	ret = bq2597x_write_byte(bq, 0x0f, 0x02);
 	ret = bq2597x_write_byte(bq, 0x10, 0x90);
-	ret = bq2597x_write_byte(bq, 0x11, 0x5f);
-	ret = bq2597x_write_byte(bq, 0x12, 0x14);
+	ret = bq2597x_write_byte(bq, 0x11, 0x6f);
+	ret = bq2597x_write_byte(bq, 0x12, 0x30);
 	ret = bq2597x_write_byte(bq, 0x23, 0x90);
 	ret = bq2597x_write_byte(bq, 0x24, 0x44);
-	bq2597x_dump_reg();
-	printk(KERN_NOTICE "[OPLUS_CHG][bq2597x_hardware_init_svooc]\r\n");
+	//bq2597x_dump_reg();
+	pr_info("[OPLUS_CHG][bq2597x_hardware_init_svooc]\r\n");
 
 	return 0;
 }
@@ -492,12 +492,12 @@ int bq2597x_hardware_init_normal_vooc(void) {
 	ret = bq2597x_write_byte(bq, 0x0d, 0x66);
 	ret = bq2597x_write_byte(bq, 0x0e, 0x00);
 	ret = bq2597x_write_byte(bq, 0x10, 0x90);
-	ret = bq2597x_write_byte(bq, 0x11, 0x5f);
-	ret = bq2597x_write_byte(bq, 0x12, 0x44);
+	ret = bq2597x_write_byte(bq, 0x11, 0x6f);
+	ret = bq2597x_write_byte(bq, 0x12, 0x30);
 	ret = bq2597x_write_byte(bq, 0x23, 0x90);
 	ret = bq2597x_write_byte(bq, 0x24, 0x44);
-	bq2597x_dump_reg();
-	printk(KERN_NOTICE "[OPLUS_CHG][bq2597x_hardware_init_normal_vooc]\r\n");
+	//bq2597x_dump_reg();
+	pr_info("[OPLUS_CHG][bq2597x_hardware_init_normal_vooc]\r\n");
 
 	return 0;
 }

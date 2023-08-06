@@ -43,6 +43,12 @@
 #include "oplus_adapter.h"
 #include "oplus_wireless.h"
 
+/* Macro's to report to framework for a workaround to avoid showing wattage
+ * information in the animation text
+ */
+#define MAX_W_POWER_SHOW_NO_WATTAGE_INFO	-3
+#define MAX_W_POWER_SHOW_WATTAGE_INFO		-1
+
 static struct oplus_wpc_chip *g_wpc_chip = NULL;
 
 void oplus_wpc_set_otg_en_val(int value)
@@ -168,6 +174,7 @@ void oplus_wpc_dcin_irq_enable(bool enable)
 bool oplus_wireless_charge_start(void)
 {
 	if (!g_wpc_chip) {
+		/*chg_err("g_wpc_chip null, return\n");*/
 		return false;
 	}
 	if (g_wpc_chip->wpc_ops->wireless_charge_start) {
@@ -381,6 +388,19 @@ void oplus_wpc_set_wrx_otg_en_value(int value)
 	}
 	chg_err("set value:%d, gpio_val:%d\n",
 		value, gpio_get_value(chip->wpc_gpios.wrx_otg_en_gpio));
+}
+
+int oplus_wpc_get_max_wireless_power(void)
+{
+	/* Workaround code logic to report to framework to avoid showing wattage
+	 * information in the animation text as agreed with systemUI team due to
+	 * the bug in MCU firmware version(0xa2) which reports same adapter ID for
+	 * 33W/50W/65W adapters which makes unable to differentiate them
+	 */
+	if (is_single_batt_svooc_project() == true)
+		return MAX_W_POWER_SHOW_NO_WATTAGE_INFO;
+	else
+		return MAX_W_POWER_SHOW_WATTAGE_INFO;
 }
 
 void oplus_wpc_init(struct oplus_wpc_chip *chip)

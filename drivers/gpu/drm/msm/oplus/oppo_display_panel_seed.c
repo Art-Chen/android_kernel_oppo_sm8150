@@ -5,7 +5,6 @@
 ** Description : oppo display panel seed feature
 ** Version : 1.0
 ** Date : 2020/06/13
-** Author : Li.Sheng@MULTIMEDIA.DISPLAY.LCD
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -61,7 +60,7 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 			pr_err("[%s] failed to send DSI_CMD_SEED_MODE0 cmds, rc=%d\n",
 				panel->name, rc);
 		}
-
+		dsi_panel_tx_cmd_set(panel, DSI_CMD_LOADING_EFFECT_OFF);
 		break;
 
 	case 1:
@@ -71,7 +70,7 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 			pr_err("[%s] failed to send DSI_CMD_SEED_MODE1 cmds, rc=%d\n",
 				panel->name, rc);
 		}
-
+		dsi_panel_tx_cmd_set(panel, DSI_CMD_LOADING_EFFECT_OFF);
 		break;
 
 	case 2:
@@ -81,7 +80,7 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 			pr_err("[%s] failed to send DSI_CMD_SEED_MODE2 cmds, rc=%d\n",
 				panel->name, rc);
 		}
-
+		dsi_panel_tx_cmd_set(panel, DSI_CMD_LOADING_EFFECT_OFF);
 		break;
 
 	case 3:
@@ -91,7 +90,7 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 			pr_err("[%s] failed to send DSI_CMD_SEED_MODE3 cmds, rc=%d\n",
 				panel->name, rc);
 		}
-
+		dsi_panel_tx_cmd_set(panel, DSI_CMD_LOADING_EFFECT_ON);
 		break;
 
 	case 4:
@@ -101,7 +100,7 @@ int dsi_panel_seed_mode_unlock(struct dsi_panel *panel, int mode)
 			pr_err("[%s] failed to send DSI_CMD_SEED_MODE4 cmds, rc=%d\n",
 				panel->name, rc);
 		}
-
+		dsi_panel_tx_cmd_set(panel, DSI_CMD_LOADING_EFFECT_OFF);
 		break;
 
 	default:

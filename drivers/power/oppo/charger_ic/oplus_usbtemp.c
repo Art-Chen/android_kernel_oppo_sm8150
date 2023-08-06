@@ -11,7 +11,6 @@
 
 
 #ifdef VENDOR_EDIT
-//YanGang@BSP.CHG.Basic, 2020/01/16, add for new dischg plan.
 #define USB_20C 20
 #define USB_30C 30
 #define USB_40C	40
@@ -322,9 +321,9 @@ int oplus_usbtemp_monitor_common(void *data)
 			for (i = 1; i < retry_cnt; i++) {
 				mdelay(RETRY_CNT_DELAY);
 				get_usb_temp(chip);
-				if (chip->usb_temp_r >= USB_57C)
+				if (chip->usb_temp_r >= USB_57C && chip->usb_temp_r < USB_100C)
 					count_r++;
-				if (chip->usb_temp_l >= USB_57C)
+				if (chip->usb_temp_l >= USB_57C && chip->usb_temp_r < USB_100C)
 					count_l++;
 				pr_err("countl : %d",count_l);
 			}
@@ -344,12 +343,12 @@ int oplus_usbtemp_monitor_common(void *data)
 		if (chip->tbatt_temp/10 > USB_50C && (((chip->usb_temp_l >= chip->tbatt_temp/10 + 7) && (chip->usb_temp_l < USB_100C))
 			|| ((chip->usb_temp_r >= chip->tbatt_temp/10 + 7) && (chip->usb_temp_r < USB_100C)))) {
 			pr_err("in loop 1");
-			for (i = 1; i < retry_cnt; i++) {
+			for (i = 1; i <= retry_cnt; i++) {
 				mdelay(RETRY_CNT_DELAY);
 				get_usb_temp(chip);
-				if (chip->usb_temp_r >= chip->tbatt_temp/10 + 7)
+				if (chip->usb_temp_r >= chip->tbatt_temp/10 + 7 && chip->usb_temp_r < USB_100C)
 					count_r++;
-				if (chip->usb_temp_l >= chip->tbatt_temp/10 + 7)
+				if (chip->usb_temp_l >= chip->tbatt_temp/10 + 7 && chip->usb_temp_r < USB_100C)
 					count_l++;
 				pr_err("countl : %d", count_l);
 			}
@@ -386,9 +385,9 @@ int oplus_usbtemp_monitor_common(void *data)
 				for (i = 1; i < retry_cnt; i++) {
 					mdelay(RETRY_CNT_DELAY);
 					get_usb_temp(chip);
-					if ((chip->usb_temp_r - last_usb_temp_r) >= 3)
+					if ((chip->usb_temp_r - last_usb_temp_r) >= 3 && chip->usb_temp_r < USB_100C)
 						count_r++;
-					if ((chip->usb_temp_l - last_usb_temp_l) >= 3)
+					if ((chip->usb_temp_l - last_usb_temp_l) >= 3 && chip->usb_temp_r < USB_100C)
 						count_l++;
 					pr_err("countl : %d",count_l);
                             	}

@@ -4,10 +4,8 @@
 * Description: For Nuvoton N76E003 MCU
 * Version   : 1.0
 * Date      : 2018-03-12
-* Author    : SJC@PhoneSW.BSP
 * ------------------------------ Revision History: --------------------------------
 * <version>       <date>        	<author>              		<desc>
-* Revision 1.0    2018-03-12  	SJC@PhoneSW.BSP    		Created for new architecture
 ***********************************************************************************/
 
 #define VOOC_MCU_N76E
@@ -441,7 +439,7 @@ static int n76e_get_fw_verion_from_ic(struct oplus_vooc_chip *chip)
 		opchg_set_clock_active(chip);
 		chip->mcu_boot_by_gpio = true;
 		msleep(10);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		chip->mcu_update_ing = true;
 		msleep(2500);
 		chip->mcu_boot_by_gpio = false;
@@ -486,7 +484,7 @@ static int n76e_fw_check_then_recover(struct oplus_vooc_chip *chip)
 		opchg_set_clock_active(chip);
 		chip->mcu_boot_by_gpio = true;
 		msleep(10);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		chip->mcu_update_ing = true;
 		msleep(2500);
 		chip->mcu_boot_by_gpio = false;
@@ -499,7 +497,7 @@ static int n76e_fw_check_then_recover(struct oplus_vooc_chip *chip)
 		}
 		chip->mcu_update_ing = false;
 		msleep(5);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		ret = FW_CHECK_MODE;
 	}
 

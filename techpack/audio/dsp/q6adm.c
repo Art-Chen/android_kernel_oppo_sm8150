@@ -55,8 +55,6 @@ enum adm_cal_status {
 	ADM_STATUS_MAX,
 };
 #ifdef OPLUS_BUG_STABILITY
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2687637 , 2020/08/14 ,
- *from adsp side force close usb once it's hung for some reason*/
 static bool is_usb_timeout = false;
 static bool close_usb = false;
 #endif //OPLUS_BUG_STABILITY
@@ -74,8 +72,6 @@ struct adm_copp {
 	atomic_t app_type[AFE_MAX_PORTS][MAX_COPPS_PER_PORT];
 	atomic_t acdb_id[AFE_MAX_PORTS][MAX_COPPS_PER_PORT];
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	atomic_t session_type[AFE_MAX_PORTS][MAX_COPPS_PER_PORT];
 #endif /* OPLUS_ARCH_EXTENDS */
 	wait_queue_head_t wait[AFE_MAX_PORTS][MAX_COPPS_PER_PORT];
@@ -288,8 +284,6 @@ static int adm_get_copp_id(int port_idx, int copp_idx)
 }
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static int adm_get_idx_if_copp_exists(int port_idx, int topology, int mode,
 				 int rate, int bit_width, int app_type,
 				 int session_type)
@@ -311,8 +305,6 @@ static int adm_get_idx_if_copp_exists(int port_idx, int topology, int mode,
 		    (bit_width ==
 			atomic_read(&this_adm.copp.bit_width[port_idx][idx])) &&
 #ifdef OPLUS_ARCH_EXTENDS
-			/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-			 * add for RX-to-TX AFE Loopback for AEC path */
 			(session_type ==
 			atomic_read(
 				&this_adm.copp.session_type[port_idx][idx])) &&
@@ -1554,8 +1546,6 @@ static void adm_reset_data(void)
 			atomic_set(
 			   &this_adm.copp.acdb_id[i][j], 0);
 #ifdef OPLUS_ARCH_EXTENDS
-			/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-			 * add for RX-to-TX AFE Loopback for AEC path */
 			atomic_set(
 				&this_adm.copp.session_type[i][j], 0);
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -1797,8 +1787,6 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 				 open->copp_id);
 
 			#ifdef OPLUS_BUG_STABILITY
-			/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2687637 , 2020/08/14 ,
-			 *from adsp side force close usb once it's hung for some reason*/
 			if(is_usb_timeout && (IDX_AFE_PORT_ID_USB_RX == port_idx))
 			{
 
@@ -2228,7 +2216,6 @@ static struct cal_block_data *adm_find_cal_by_path(int cal_index, int path)
 		if (cal_index == ADM_AUDPROC_CAL ||
 		    cal_index == ADM_LSM_AUDPROC_CAL ||
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 		    cal_index == ADM_LSM_AUDPROC_PERSISTENT_CAL ||
 		    cal_index == ADM_AUDPROC_PERSISTENT_CAL) {
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -2270,7 +2257,6 @@ static struct cal_block_data *adm_find_cal_by_app_type(int cal_index, int path,
 		if (cal_index == ADM_AUDPROC_CAL ||
 		    cal_index == ADM_LSM_AUDPROC_CAL ||
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 		    cal_index == ADM_LSM_AUDPROC_PERSISTENT_CAL ||
 		    cal_index == ADM_AUDPROC_PERSISTENT_CAL) {
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -2315,7 +2301,6 @@ static struct cal_block_data *adm_find_cal(int cal_index, int path,
 		if (cal_index == ADM_AUDPROC_CAL ||
 		    cal_index == ADM_LSM_AUDPROC_CAL ||
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 		    cal_index == ADM_LSM_AUDPROC_PERSISTENT_CAL||
 		    cal_index == ADM_AUDPROC_PERSISTENT_CAL) {
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -2410,7 +2395,6 @@ static void send_adm_cal(int port_id, int copp_idx, int path, int perf_mode,
 		send_adm_cal_type(ADM_AUDPROC_CAL, path, port_id, copp_idx,
 				perf_mode, app_type, acdb_id, sample_rate);
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 		send_adm_cal_type(ADM_AUDPROC_PERSISTENT_CAL, path,
 				  port_id, copp_idx, perf_mode, app_type,
 				  acdb_id, sample_rate);
@@ -2903,21 +2887,13 @@ static int adm_arrange_mch_ep2_map_v8(
  */
 
 #ifdef OPLUS_FEATURE_KTV
-/*Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26,
- *Add for for KTV 2.0 not support sample_rate issue.
- */
 #define AUDIO_TOPOLOGY_KTV    0x10001080
 #endif /* OPLUS_FEATURE_KTV */
 
 #ifdef OPLUS_ARCH_EXTENDS
-/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.PLATFORM.1859584 , 2020/08/14 ,
- *Add for fix lvimfq not support sample_rate issue.
- */
 #define VOICE_TOPOLOGY_LVIMFQ_TX_DM    0x1000BFF5
 #endif /* OPLUS_ARCH_EXTENDS */
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	     int perf_mode, uint16_t bit_width, int app_type, int acdb_id,
 	     int session_type)
@@ -2948,8 +2924,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	port_idx = adm_validate_and_get_port_index(port_id);
 
 	#ifdef OPLUS_BUG_STABILITY
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2687637 , 2020/08/14
-	 *from adsp side force close usb once it's hung for some reason*/
 	if(is_usb_timeout && (AFE_PORT_ID_USB_RX == port_id)){
 		pr_err("%s: USB RX timeout return\n", __func__);
 		return -EINVAL;
@@ -3018,9 +2992,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	}
 
 	#ifdef OPLUS_ARCH_EXTENDS
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.PLATFORM.1859584 , 2020/08/14 ,
-	 *Add for fix lvimfq not support sample_rate issue.
-	 */
 	if ((topology == VOICE_TOPOLOGY_LVIMFQ_TX_DM)
 		&& (rate != ADM_CMD_COPP_OPEN_SAMPLE_RATE_48K)) {
 		pr_info("%s: Change rate %d to 48K for copp 0x%x",
@@ -3036,9 +3007,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	}
 
 #ifdef OPLUS_FEATURE_KTV
-	/*Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26,
-	 *Add for for KTV 2.0 not support sample_rate issue.
-	 */
 	if ((topology == AUDIO_TOPOLOGY_KTV)
 			&& (rate != ADM_CMD_COPP_OPEN_SAMPLE_RATE_48K)) {
 			pr_info("%s: Change rate %d to 48K for copp 0x%x",
@@ -3057,8 +3025,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	 */
 	if (perf_mode != ULTRA_LOW_LATENCY_PCM_MODE)
 #ifdef OPLUS_ARCH_EXTENDS
-		/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-		 * add for RX-to-TX AFE Loopback for AEC path */
 		copp_idx = adm_get_idx_if_copp_exists(port_idx, topology,
 						      perf_mode,
 						      rate, bit_width,
@@ -3093,8 +3059,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		atomic_set(&this_adm.copp.acdb_id[port_idx][copp_idx],
 			   acdb_id);
 #ifdef OPLUS_ARCH_EXTENDS
-		/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-		 * add for RX-to-TX AFE Loopback for AEC path */
 		atomic_set(&this_adm.copp.session_type[port_idx][copp_idx],
 			session_type);
 #endif /* OPLUS_ARCH_EXTENDS */
@@ -3278,8 +3242,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 			open.endpoint_id_2 = 0xFFFF;
 
 #ifdef OPLUS_ARCH_EXTENDS
-			/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-			 * add for RX-to-TX AFE Loopback for AEC path */
 			if (this_adm.ec_ref_rx && (path != 1) &&
 				(afe_get_port_type(tmp_port) == MSM_AFE_PORT_TYPE_TX)) {
 				open.endpoint_id_2 = this_adm.ec_ref_rx;
@@ -3367,8 +3329,6 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 			pr_err("%s: ADM open timedout for port_id: 0x%x for [0x%x]\n",
 						__func__, tmp_port, port_id);
 			#ifdef OPLUS_BUG_STABILITY
-			/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2687637 , 2020/08/14
-			 *from adsp side force close usb once it's hung for some reason*/
 			if(AFE_PORT_ID_USB_RX == port_id){
 				is_usb_timeout = true;
 			}
@@ -3733,8 +3693,6 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 	int copp_id = RESET_COPP_ID;
 
 	#ifdef OPLUS_BUG_STABILITY
-	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2687637 , 2020/08/14
-	 *from adsp side force close usb once it's hung for some reason*/
 	int usb_copp_id = RESET_COPP_ID;
 	int usb_copp_idx = 0;
 	struct apr_hdr usb_close;
@@ -3807,8 +3765,6 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 		}
 
 		#ifdef OPLUS_BUG_STABILITY
-		/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2687637 , 2020/08/14
-		 *from adsp side force close usb once it's hung for some reason*/
 		if(close_usb)
 		{
 			for(usb_copp_idx = 0; usb_copp_idx < 8; usb_copp_idx++){
@@ -3896,8 +3852,6 @@ int adm_close(int port_id, int perf_mode, int copp_idx)
 		atomic_set(&this_adm.copp.bit_width[port_idx][copp_idx], 0);
 		atomic_set(&this_adm.copp.app_type[port_idx][copp_idx], 0);
 #ifdef OPLUS_ARCH_EXTENDS
-		/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-		 * add for RX-to-TX AFE Loopback for AEC path */
 		atomic_set(&this_adm.copp.session_type[port_idx][copp_idx], 0);
 #endif /* OPLUS_ARCH_EXTENDS */
 
@@ -4136,7 +4090,6 @@ static int get_cal_type_index(int32_t cal_type)
 		ret = ADM_LSM_AUDPROC_PERSISTENT_CAL;
 		break;
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 	case ADM_AUDPROC_PERSISTENT_CAL_TYPE:
 		ret = ADM_AUDPROC_PERSISTENT_CAL;
 		break;
@@ -4370,7 +4323,6 @@ static int adm_init_cal_data(void)
 		  cal_utils_match_buf_num} },
 
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 		{{ADM_AUDPROC_PERSISTENT_CAL_TYPE,
 		 {adm_alloc_cal, adm_dealloc_cal, NULL,
 		  adm_set_cal, NULL, NULL} },
@@ -4432,7 +4384,6 @@ int adm_set_volume(int port_id, int copp_idx, int volume)
 EXPORT_SYMBOL(adm_set_volume);
 
 #ifdef OPLUS_FEATURE_KTV
-// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 int  adm_set_reverb_param(int port_id, int copp_idx, int32_t* params)
 {
 	struct audproc_revert_param audproc_param;
@@ -4944,7 +4895,6 @@ int adm_store_cal_data(int port_id, int copp_idx, int path, int perf_mode,
 			goto unlock;
 		}
 #ifdef OPLUS_ARCH_EXTENDS
-/*Zhixiong Zhang@MULTIMEDIA.AUDIODRIVER.ADSP.354056, 2020/09/08, CR 2663827 fix voicecall tx mute issue*/
 	} else if (cal_index == ADM_AUDPROC_PERSISTENT_CAL) {
 		if (cal_block->cal_data.size > AUD_PROC_PERSIST_BLOCK_SIZE) {
 			pr_err("%s:persist invalid size exp/actual[%zd, %d]\n",

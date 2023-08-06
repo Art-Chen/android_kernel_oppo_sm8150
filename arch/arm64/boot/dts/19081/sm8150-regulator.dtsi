@@ -992,4 +992,14 @@
 		regulator-name = "refgen";
 		regulator-enable-ramp-delay = <5>;
 	};
+
+        //#ifdef OPLUS_FEATURE_TP_BASIC
+        touchpanel_vdd: touchpanel_vdd {
+                compatible = "regulator-fixed";
+                regulator-name = "touchpanel_vdd";
+                startup-delay-us = <0>;
+                enable-active-high;
+                gpio = <&tlmm 90 0>;
+        };
+        //#endif
 };

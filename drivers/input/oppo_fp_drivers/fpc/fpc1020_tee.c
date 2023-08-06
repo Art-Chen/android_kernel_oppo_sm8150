@@ -18,7 +18,7 @@
 #include <linux/pinctrl/consumer.h>
 #include "../include/wakelock.h"
 #include <soc/qcom/scm.h>
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 
 #undef dev_info
 #define dev_info dev_err
@@ -48,6 +48,7 @@ struct vreg_config {
 static const struct vreg_config const vreg_conf[] = {
         { "vdd_io", 1800000UL, 1800000UL, 10000, },
         { "vmch", 2960000UL, 2960000UL, 10000, },
+        { "avdd_io", 3300000UL, 3300000UL, 10000, },
 };
 
 struct fpc1020_data {
@@ -58,7 +59,6 @@ struct fpc1020_data {
         bool prepared;
 
 //#ifdef OPLUS_FEATURE_FINGERPRINT
-        /*ziqing.guo@BasicDrv.Sensor, 2016/01/26, modify for enable/disable irq*/
         int irq_enabled;
 //#endif
 
@@ -159,7 +159,6 @@ found:
 }
 
 //#ifdef OPLUS_FEATURE_FINGERPRINT
-/* ziqing.guo@BasicDrv.Sensor, 2016/01/26, modify for enable/disable irq */
 static DEFINE_SPINLOCK(fpc1020_lock);
 
 static int fpc1020_enable_irq(struct fpc1020_data *fpc1020, bool enable)
@@ -238,11 +237,11 @@ static ssize_t regulator_enable_set(struct device *dev,
         }
         rc = vreg_setup(fpc1020, "vdd_io", enable);
         rc = vreg_setup(fpc1020, "vmch", enable);
+        rc = vreg_setup(fpc1020, "avdd_io", enable);
         return rc ? rc : count;
 }
 
 //#ifdef OPLUS_FEATURE_FINGERPRINT
-/* ziqing.guo@BasicDrv.Sensor, 2016/01/26, modify for enable/disable irq */
 static ssize_t irq_enable_set(struct device *dev,
                 struct device_attribute *attribute, const char *buffer, size_t count)
 {
@@ -305,7 +304,6 @@ static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
 static DEVICE_ATTR(regulator_enable, S_IWUSR, NULL, regulator_enable_set);
 
 //#ifdef OPLUS_FEATURE_FINGERPRINT
-/* ziqing.guo@BasicDrv.Sensor, 2016/01/26, modify for enable/disable irq */
 static DEVICE_ATTR(irq_enable, S_IWUSR, irq_enable_get, irq_enable_set);
 //#endif
 
@@ -380,7 +378,8 @@ static int fpc1020_probe(struct platform_device *pdev)
                         &&(FP_FPC_1023_GLASS != get_fpsensor_type())
                         &&(FP_FPC_1270 != get_fpsensor_type())
                         &&(FP_FPC_1511 != get_fpsensor_type())
-                        &&(FP_FPC_1541 != get_fpsensor_type())) {
+                        &&(FP_FPC_1541 != get_fpsensor_type())
+                        &&(FP_FPC_1542 != get_fpsensor_type())) {
                 dev_err(dev, "found not fpc sensor\n");
                 rc = -EINVAL;
                 goto ERR_BEFORE_WAKELOCK;
@@ -415,7 +414,6 @@ static int fpc1020_probe(struct platform_device *pdev)
         /*enable_irq_wake( gpio_to_irq( fpc1020->irq_gpio ) );*/
 
 //#ifdef OPLUS_FEATURE_FINGERPRINT
-        /*ziqing.guo@BasicDrv.Sensor, 2016/01/26, modify for enable/disable irq*/
         disable_irq_nosync(gpio_to_irq(fpc1020->irq_gpio));
         fpc1020->irq_enabled = 0;
 //#endif
@@ -428,6 +426,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 
         rc = vreg_setup(fpc1020, "vdd_io", true);
         rc = vreg_setup(fpc1020, "vmch", true);
+        rc = vreg_setup(fpc1020, "avdd_io", true);
         if (rc) {
                 dev_err(fpc1020->dev,
                                 "vreg_setup failed.\n");

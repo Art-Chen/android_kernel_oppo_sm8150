@@ -4,10 +4,8 @@
 * Description: For Rockchip RK826 ASIC
 * Version   : 1.0
 * Date      : 2019-08-15
-* Author    : SJC@PhoneSW.BSP
 * ------------------------------ Revision History: --------------------------------
 * <version>       <date>        	<author>              		<desc>
-* Revision 1.0    2019-08-15  	SJC@PhoneSW.BSP    		Created for new architecture
 ***********************************************************************************/
 
 #define VOOC_ASIC_RK826
@@ -1095,14 +1093,14 @@ static int rk826_fw_check_then_recover(struct oplus_vooc_chip *chip)
 
 	if (oplus_is_power_off_charging(chip) == true || oplus_is_charger_reboot(chip) == true) {
 		chip->mcu_update_ing = true;
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		msleep(5);
 		update_result = rk826_fw_update(chip);
 		chip->mcu_update_ing = false;
 		if (update_result) {
 			msleep(30);
 			opchg_set_clock_sleep(chip);
-			opchg_set_reset_active(chip);
+			opchg_set_reset_active_force(chip);
 		}
 		ret = FW_NO_CHECK_MODE;
 	} else {
@@ -1110,7 +1108,7 @@ update_asic_fw:
 		opchg_set_clock_active(chip);
 		chip->mcu_boot_by_gpio = true;
 		msleep(10);
-		opchg_set_reset_active(chip);
+		opchg_set_reset_active_force(chip);
 		chip->mcu_update_ing = true;
 		msleep(2500);
 		chip->mcu_boot_by_gpio = false;

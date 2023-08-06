@@ -72,7 +72,6 @@ struct msm_pcm_pdata {
 	int perf_mode;
 };
 #ifdef OPLUS_FEATURE_KTV
-// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 static bool is_ktv_mode(struct msm_pcm_loopback *pcm) {
 	struct snd_soc_pcm_runtime *soc_pcm_tx =
 			pcm->capture_substream->private_data;
@@ -269,7 +268,6 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 	uint32_t param_id;
 	struct msm_pcm_pdata *pdata;
 	#ifdef OPLUS_FEATURE_KTV
-	// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 	int tx_perf_mode;
 	#endif /* OPLUS_FEATURE_KTV */
 
@@ -316,7 +314,6 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 		}
 		pcm->session_id = pcm->audio_client->session;
 		#ifdef OPLUS_FEATURE_KTV
-		// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 		pcm->audio_client->perf_mode = is_ktv_mode(pcm) ? LOW_LATENCY_PCM_MODE : pdata->perf_mode;
 		#else /* OPLUS_FEATURE_KTV */
 		pcm->audio_client->perf_mode = pdata->perf_mode;
@@ -333,7 +330,6 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 		event.event_func = msm_pcm_route_event_handler;
 		event.priv_data = (void *) pcm;
 		#ifdef OPLUS_FEATURE_KTV
-		// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 		tx_perf_mode = is_ktv_mode(pcm) ? LEGACY_PCM_MODE : pcm->audio_client->perf_mode;
 		#endif /* OPLUS_FEATURE_KTV */
 
@@ -342,7 +338,6 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 			pcm->audio_client->perf_mode,
 			pcm->session_id, pcm->capture_substream->stream);
 		#else //OPLUS_FEATURE_KTV
-		// Erhu.Zhang@MULTIMEDIA.AUDIODRIVER.FEATURE, 2020/10/26, Add for ktv2.0
 		msm_pcm_routing_reg_phy_stream(soc_pcm_tx->dai_link->id,
 			tx_perf_mode,
 			pcm->session_id, pcm->capture_substream->stream);

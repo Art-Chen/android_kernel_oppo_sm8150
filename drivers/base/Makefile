@@ -30,3 +30,4 @@ obj-y			+= test/
 
 ccflags-$(CONFIG_DEBUG_DRIVER) := -DDEBUG
 
+obj-$(CONFIG_OPLUS_FW_UPDATE)	+=  kernelFwUpdate/

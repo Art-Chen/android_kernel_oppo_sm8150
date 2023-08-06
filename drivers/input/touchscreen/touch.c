@@ -6,7 +6,6 @@
  *             tp dev
  * Version:1.0:
  * Date created:2016/09/02
- * Author: hao.wang@Bsp.Driver
  * TAG: BSP.TP.Init
 */
 
@@ -17,8 +16,8 @@
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/init.h>
-#include "oppo_touchscreen/tp_devices.h"
-#include "oppo_touchscreen/touchpanel_common.h"
+#include "oplus_touchscreen/tp_devices.h"
+#include "oplus_touchscreen/touchpanel_common.h"
 #include <soc/oplus/system/oppo_project.h>
 #include <soc/oppo/device_info.h>
 #include "touch.h"
@@ -28,6 +27,7 @@
 extern char *saved_command_line;
 int g_tp_dev_vendor = TP_UNKNOWN;
 int g_tp_prj_id = 0;
+static int lcd_id = 0;
 
 /*if can not compile success, please update vendor/oppo_touchsreen*/
 struct tp_dev_name tp_dev_names[] = {
@@ -47,6 +47,19 @@ struct tp_dev_name tp_dev_names[] = {
 
 #define GET_TP_DEV_NAME(tp_type) ((tp_dev_names[tp_type].type == (tp_type))?tp_dev_names[tp_type].name:"UNMATCH")
 
+static int get_cmdlinelcd_id(void)
+{
+	if (strstr(saved_command_line, "panel_type=normal")) {
+		lcd_id = 0;
+	} else if (strstr(saved_command_line, "panel_type=x_talk")) {
+		lcd_id = 1;
+	} else if (strstr(saved_command_line, "panel_type=tx")) {
+		lcd_id = 1;
+	}
+	pr_err("[TP] %s enter, lcd_id:%d\n", __func__, lcd_id);
+	return 0;
+}
+
 bool __init tp_judge_ic_match(char *tp_ic_name) {
     return true;
 }
@@ -55,7 +68,7 @@ bool __init tp_judge_ic_match(char *tp_ic_name) {
     int prj_id = 0;
     int i = 0;
     prj_id = get_project();
-    pr_err("[TP] boot_command_line = %s \n prj_id = %d \n", saved_command_line, prj_id);
+    pr_err("[TP] boot_command_line = %s \n", saved_command_line);
     for(i = 0; i<panel_data->project_num; i++){
         if(prj_id == panel_data->platform_support_project[i]){
             g_tp_prj_id = panel_data->platform_support_project_dir[i];
@@ -64,7 +77,7 @@ bool __init tp_judge_ic_match(char *tp_ic_name) {
                 return true;
             }
             else{
-                break;
+                continue;
             }
         }
     }
@@ -82,7 +95,6 @@ int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data
 
     if (strstr(saved_command_line, "dsi_oppo19696boe_nt36672c_1080_2400_90fps_vid")) {
         panel_data->tp_type = TP_BOE;
-        hw_res->TX_NUM = 18;
     }
     if (strstr(saved_command_line, "dsi_oppo19696jdi_nt36672c_1080_2400_90fps_vid")) {
         panel_data->tp_type = TP_JDI;
@@ -144,6 +156,28 @@ int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data
 		}
 	}
 
+	if (g_tp_prj_id == 18865 || g_tp_prj_id == 19801) {
+		pr_err("[TP] %s project is :%d\n", __func__, g_tp_prj_id);
+		get_cmdlinelcd_id();
+		if (lcd_id) {
+			snprintf(panel_data->fw_name, MAX_FW_NAME_LENGTH,
+			"tp/%d/FW_%s_%s_NEW.img", g_tp_prj_id, panel_data->chip_name, vendor);
+
+			if (panel_data->test_limit_name) {
+				snprintf(panel_data->test_limit_name, MAX_LIMIT_DATA_LENGTH,
+				"tp/%d/LIMIT_%s_%s_NEW.img", g_tp_prj_id, panel_data->chip_name, vendor);
+			}
+		} else {
+			snprintf(panel_data->fw_name, MAX_FW_NAME_LENGTH,
+			"tp/%d/FW_%s_%s.img", g_tp_prj_id, panel_data->chip_name, vendor);
+
+			if (panel_data->test_limit_name) {
+				snprintf(panel_data->test_limit_name, MAX_LIMIT_DATA_LENGTH,
+				"tp/%d/LIMIT_%s_%s.img", g_tp_prj_id, panel_data->chip_name, vendor);
+			}
+		}
+	}
+
     if (strstr(saved_command_line, "dsi_oppo19365samsung")) {
         memcpy(panel_data->manufacture_info.version, "0xbd3320000", 11);
     }
@@ -157,6 +191,10 @@ int tp_util_get_vendor(struct hw_resource *hw_res, struct panel_info *panel_data
     if (g_tp_prj_id == 0x206B1){
         memcpy(panel_data->manufacture_info.version, "0xbd3650000", 11);
     }
+
+	if ((g_tp_prj_id == 20711) || (g_tp_prj_id == 20712) || (g_tp_prj_id == 20713) || (g_tp_prj_id == 20714)) {
+        memcpy(panel_data->manufacture_info.version, "focalt_", 7);
+	}
 
     if (panel_data->tp_type == TP_DSJM) {
         memcpy(panel_data->manufacture_info.version, "HX_DSJM", 7);

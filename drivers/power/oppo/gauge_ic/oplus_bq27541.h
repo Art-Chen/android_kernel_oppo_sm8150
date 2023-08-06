@@ -49,7 +49,7 @@
 #define BQ27541_REG_TTECP		0x26
 #define BQ27541_REG_INTTEMP		0x28
 #define BQ27541_REG_CC			0x2a
-#define BQ27541_REG_SOH			0x28
+#define BQ27541_REG_SOH			0x2E
 #define BQ27541_REG_SOC			0x2c
 #define BQ27541_REG_NIC			0x2e
 #define BQ27541_REG_ICR			0x30
@@ -174,11 +174,13 @@
 #define DEVICE_TYPE_BQ27411			0x0421
 #define DEVICE_TYPE_BQ28Z610		0xFFA5
 #define DEVICE_TYPE_ZY0602			0x0602
+#define DEVICE_TYPE_ZY0603			0xA5FF
 
 #define DEVICE_BQ27541				0
 #define DEVICE_BQ27411				1
 #define DEVICE_BQ28Z610				2
 #define DEVICE_ZY0602				3
+#define DEVICE_ZY0603				4
 
 #define DEVICE_TYPE_FOR_VOOC_BQ27541		0
 #define DEVICE_TYPE_FOR_VOOC_BQ27411		1
@@ -425,10 +427,26 @@ struct chip_bq27541 {
 	struct pinctrl_state *gpio_reset_sleep;
 
 	bool modify_soc_smooth;
+	bool modify_soc_calibration;
 	
 	bool battery_full_param;//only for wite battery full param in guage dirver probe on 7250 platform
 	int sha1_key_index;
+	struct delayed_work afi_update;
+	bool afi_update_done;
+	bool protect_check_done;
+	bool disabled;
+	bool error_occured;
+	bool need_check;
+	unsigned int afi_count;
+	unsigned int zy_dts_qmax_min;
+	unsigned int zy_dts_qmax_max;
+	const u8 *static_df_checksum_3e;
+	const u8 *static_df_checksum_60;
+	const u8 **afi_buf;
+	unsigned int *afi_buf_len;
+
 	bool batt_bq28z610;
+	bool batt_zy0603;
 	bool bq28z610_need_balancing;
 	int bq28z610_device_chem;
 	struct bq27541_authenticate_data *authenticate_data;

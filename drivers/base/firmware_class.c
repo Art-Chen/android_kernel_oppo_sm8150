@@ -1319,19 +1319,6 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 	return ret;
 }
 EXPORT_SYMBOL(request_firmware);
-#ifdef VENDOR_EDIT
-int request_firmware_select(const struct firmware **firmware_p, const char *name,
-		 struct device *device)
-{
-	int ret;
-	__module_get(THIS_MODULE);
-	ret = _request_firmware(firmware_p, name, device, NULL, 0,
-				FW_OPT_UEVENT | FW_OPT_FALLBACK | FW_OPT_COMPARE);
-	module_put(THIS_MODULE);
-	return ret;
-}
-EXPORT_SYMBOL(request_firmware_select);
-#endif/*VENDOR_EDIT*/
 
 /**
  * request_firmware_direct: - load firmware directly without usermode helper

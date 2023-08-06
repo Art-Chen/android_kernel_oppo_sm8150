@@ -5,11 +5,9 @@
 *                  Manage all charger IC and define abstarct function flow.
 * Version   : 1.0
 * Date      : 2015-06-22
-* Author    : fanhui@PhoneSW.BSP
 *           : Fanhong.Kong@ProDrv.CHG
 * ------------------------------ Revision History: --------------------------------
 * <version>         <date>              <author>                      <desc>
-* Revision 1.0    2015-06-22      fanhui@PhoneSW.BSP          Created for new architecture
 * Revision 1.0    2015-06-22      Fanhong.Kong@ProDrv.CHG     Created for new architecture
 ***********************************************************************************/
 
@@ -601,6 +599,7 @@ struct oplus_chg_chip {
 	struct delayed_work update_work;
 	struct delayed_work ui_soc_decimal_work;
 	struct delayed_work  mmi_adapter_in_work;
+	struct delayed_work  reset_adapter_work;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
 	struct wake_lock suspend_lock;
 #else
@@ -615,10 +614,13 @@ struct oplus_chg_chip {
 	bool wpc_no_chargerpump;
 	bool charger_exist;
 	int charger_type;
+	int real_charger_type;
 	int charger_volt;
 	int charger_volt_pre;
 	int sw_full_count;
 	bool sw_full;
+	bool hw_full_by_sw;
+	bool hw_full;
 	int temperature;
 	int tbatt_temp;
 	int shell_temp;
@@ -725,6 +727,9 @@ struct oplus_chg_chip {
 	bool fastchg_to_ffc;
 	int fastchg_ffc_status;
 	int ffc_temp_status;
+#ifdef OPLUS_CUSTOM_OP_DEF
+	bool ffc_exit_chg_break;
+#endif
 	bool allow_swtich_to_fastchg;
 	bool platform_fg_flag;
 	struct task_struct *shortc_thread;
@@ -757,13 +762,21 @@ struct oplus_chg_chip {
 	bool decimal_control;
 	bool vooc_show_ui_soc_decimal;
 	struct thermal_zone_device *shell_themal;
+	int svooc_disconnect_count;
+	int detect_detach_unexpeactly;
+	unsigned long long svooc_detect_time;
+	unsigned long long svooc_detach_time;
 	int pd_svooc;
 	int pd_chging;
-
-	int soc_ajust;
-	int modify_soc;
-	ktime_t interval_1;
-	ktime_t interval_2;
+	int pd_wait_svid;
+	bool is_abnormal_adapter;
+	bool support_abnormal_adapter;
+	int abnormal_adapter_dis_cnt;
+	bool icon_debounce;
+#ifdef OPLUS_CUSTOM_OP_DEF
+	bool hiz_gnd_cable;
+	int cool_down_bck;
+#endif
 };
 
 
@@ -798,6 +811,7 @@ struct oplus_chg_operations {
 	int (*get_charger_volt)(void);
 	int (*get_ibus)(void);
 	int (*get_charger_current)(void);
+	int (*get_real_charger_type)(void);
 	int (*get_chargerid_volt)(void);
 	void (*set_chargerid_switch_val)(int value);
 	int (*get_chargerid_switch_val)(void);
@@ -837,6 +851,8 @@ struct oplus_chg_operations {
 	int (*enable_burst_mode)(bool enable);
 	void (*oplus_chg_wdt_enable)(bool wdt_enable);
 	bool (*check_pdphy_ready)(void);
+	void (*enable_usb_peripheral)(bool enable);
+	int (*get_skin_temp)(void);
 };
 
 
@@ -885,6 +901,9 @@ bool oplus_chg_wake_update_work(void);
 void oplus_chg_soc_update_when_resume(unsigned long sleep_tm_sec);
 void oplus_chg_soc_update(void);
 int oplus_chg_get_batt_volt(void);
+int oplus_chg_get_cool_bat_decidegc(void);
+int oplus_chg_get_little_cool_bat_decidegc(void);
+int oplus_chg_get_normal_bat_decidegc(void);
 int oplus_chg_get_icharging(void);
 bool oplus_chg_get_chging_status(void);
 
@@ -917,6 +936,10 @@ bool oplus_chg_get_rechging_status(void);
 bool oplus_chg_check_chip_is_null(void);
 void oplus_chg_set_charger_type_unknown(void);
 int oplus_chg_get_charger_voltage(void);
+int oplus_chg_get_skin_temp(void);
+#ifdef OPLUS_CUSTOM_OP_DEF
+int oplus_chg_get_charger_current(void);
+#endif
 int oplus_chg_update_voltage(void);
 
 void oplus_chg_set_chargerid_switch_val(int value);
@@ -933,7 +956,6 @@ void oplus_chg_variables_reset(struct oplus_chg_chip *chip, bool in);
 void oplus_chg_external_power_changed(struct power_supply *psy);
 #endif
 int oplus_is_rf_ftm_mode(void);
-//huangtongfeng@BSP.CHG.Basic, 2017/01/13, add for kpoc charging param.
 int oplus_get_charger_chip_st(void);
 void oplus_chg_set_allow_switch_to_fastchg(bool allow);
 int oplus_tbatt_power_off_task_init(struct oplus_chg_chip *chip);
@@ -951,5 +973,13 @@ bool oplus_chg_wake_up_ui_soc_decimal(void);
 void oplus_chg_ui_soc_decimal_init(void);
 bool oplus_chg_get_boot_completed(void);
 int oplus_chg_match_temp_for_chging(void);
+void oplus_chg_reset_adapter(void);
+void oplus_chg_check_break(int vbus_rising);
+bool is_single_batt_svooc_project(void);
+int oplus_chg_get_abnormal_adapter_dis_cnt(void);
+void oplus_chg_set_abnormal_adapter_dis_cnt(int count);
+bool oplus_chg_get_icon_debounce(void);
+void oplus_chg_set_icon_debounce_false(void);
+void oplus_chg_clear_abnormal_adapter_var(void);
 
 #endif /*_OPLUS_CHARGER_H_*/

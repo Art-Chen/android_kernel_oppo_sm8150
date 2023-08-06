@@ -16,13 +16,45 @@
 static struct kobject *systeminfo_kobj;
 static int ftm_mode = MSM_BOOT_MODE__NORMAL;
 
+#if IS_MODULE(CONFIG_OPLUS_FEATURE_PROJECTINFO)
+extern char oppo_ftm_mode[];
+extern char startup_mode[];
+extern char charger_present[];
+extern char bootmode[];
+#endif
+
 int __init  board_ftm_mode_init(void)
 {
+#if IS_MODULE(CONFIG_OPLUS_FEATURE_PROJECTINFO)
+	if(oppo_ftm_mode != NULL) {
+		pr_err("oplus_ftm_mode from cmdline : %s\n",oppo_ftm_mode);
+		if (strcmp(oppo_ftm_mode, "factory2") == 0) {
+			ftm_mode = MSM_BOOT_MODE__FACTORY;
+			pr_err("kernel ftm OK\r\n");
+		} else if (strcmp(oppo_ftm_mode, "ftmwifi") == 0) {
+			ftm_mode = MSM_BOOT_MODE__WLAN;
+		} else if (strcmp(oppo_ftm_mode, "ftmmos") == 0) {
+			ftm_mode = MSM_BOOT_MODE__MOS;
+		} else if (strcmp(oppo_ftm_mode, "ftmrf") == 0) {
+			ftm_mode = MSM_BOOT_MODE__RF;
+		} else if (strcmp(oppo_ftm_mode, "ftmrecovery") == 0) {
+			ftm_mode = MSM_BOOT_MODE__RECOVERY;
+		} else if (strcmp(oppo_ftm_mode, "ftmsilence") == 0) {
+			ftm_mode = MSM_BOOT_MODE__SILENCE;
+		} else if (strcmp(oppo_ftm_mode, "ftmsau") == 0) {
+			ftm_mode = MSM_BOOT_MODE__SAU;
+		} else if (strcmp(oppo_ftm_mode, "ftmaging") == 0) {
+			ftm_mode = MSM_BOOT_MODE__AGING;
+		} else if (strcmp(oppo_ftm_mode, "ftmsafe") == 0) {
+			ftm_mode = MSM_BOOT_MODE__SAFE;
+		}
+	}
+#else
 	char *substr;
 
-	substr = strstr(boot_command_line, "oppo_ftm_mode=");
+	substr = strstr(boot_command_line, "oplus_ftm_mode=");
 	if (substr) {
-		substr += strlen("oppo_ftm_mode=");
+		substr += strlen("oplus_ftm_mode=");
 
 		if (strncmp(substr, "factory2", 5) == 0) {
 			ftm_mode = MSM_BOOT_MODE__FACTORY;
@@ -39,14 +71,13 @@ int __init  board_ftm_mode_init(void)
 			ftm_mode = MSM_BOOT_MODE__SILENCE;
 		} else if (strncmp(substr, "ftmsau", 6) == 0) {
 			ftm_mode = MSM_BOOT_MODE__SAU;
-        //xiaofan.yang@PSW.TECH.AgingTest, 2019/01/07,Add for factory agingtest
-        } else if (strncmp(substr, "ftmaging", 8) == 0) {
-            ftm_mode = MSM_BOOT_MODE__AGING;
+		} else if (strncmp(substr, "ftmaging", 8) == 0) {
+			ftm_mode = MSM_BOOT_MODE__AGING;
 		} else if (strncmp(substr, "ftmsafe", 7) == 0) {
 			ftm_mode = MSM_BOOT_MODE__SAFE;
 		}
 	}
-
+#endif
 	pr_err("board_ftm_mode_init ftm_mode=%d\n", ftm_mode);
 	return 0;
 }
@@ -80,7 +111,15 @@ static struct attribute_group attr_group = {
 char pwron_event[MAX_CMD_LENGTH + 1];
 static int __init start_reason_init(void)
 {
-	int i;
+#if IS_MODULE(CONFIG_OPLUS_FEATURE_PROJECTINFO)	
+	if(startup_mode != NULL) {
+		pr_err("startup_mode from cmdline : %s\n",startup_mode);
+		strcpy(pwron_event, startup_mode);
+		pwron_event[strlen(startup_mode)] = '\0';
+		pr_info("parse poweron reason %s i = %d\n", pwron_event, strlen(startup_mode));
+	}
+#else
+    int i;
 	char * substr = strstr(boot_command_line, "androidboot.startupmode=");
 	if (NULL == substr) {
 		return 0;
@@ -92,6 +131,7 @@ static int __init start_reason_init(void)
 
 	pwron_event[i] = '\0';
 	pr_info("parse poweron reason %s i = %d\n", pwron_event, i);
+#endif
 
 	return 0;
 }
@@ -105,6 +145,7 @@ bool qpnp_is_power_off_charging(void)
 
 	return false;
 }
+EXPORT_SYMBOL(qpnp_is_power_off_charging);
 
 #ifdef PHOENIX_PROJECT
 bool op_is_monitorable_boot(void)
@@ -135,10 +176,17 @@ bool qpnp_is_charger_reboot(void)
 
 	return false;
 }
+EXPORT_SYMBOL(qpnp_is_charger_reboot);
 
-static int __init oppo_charger_reboot(void)
+static int __init oplus_charger_reboot(void)
 {
-	int i;
+#if IS_MODULE(CONFIG_OPLUS_FEATURE_PROJECTINFO)
+	if(charger_present != NULL) {
+		pr_err("charger present from cmdline : %s\n", charger_present);
+		strcpy(charger_reboot, charger_present);
+		charger_reboot[strlen(charger_present)] = '\0';
+#else
+    int i;
 	char * substr = strstr(boot_command_line, "oppo_charger_present=");
 	if (substr) {
 		substr += strlen("oppo_charger_present=");
@@ -146,14 +194,22 @@ static int __init oppo_charger_reboot(void)
 			charger_reboot[i] = substr[i];
 		}
 		charger_reboot[i] = '\0';
+#endif
 		pr_info("%s: parse charger_reboot %s\n", __func__, charger_reboot);
 	}
+
 	return 0;
 }
 
 int __init  board_boot_mode_init(void)
 {
-	int i;
+#if IS_MODULE(CONFIG_OPLUS_FEATURE_PROJECTINFO)
+	if(bootmode != NULL) {
+		pr_err("mode from cmdline : %s\n", bootmode);
+		strcpy(boot_mode, bootmode);
+		boot_mode[strlen(bootmode)] = '\0';
+#else
+    int i;
 	char *substr;
 
 	substr = strstr(boot_command_line, "androidboot.mode=");
@@ -163,6 +219,7 @@ int __init  board_boot_mode_init(void)
 			boot_mode[i] = substr[i];
 		}
 		boot_mode[i] = '\0';
+#endif
 		pr_err("androidboot.mode= %s\n", boot_mode);
 	}
 
@@ -178,7 +235,7 @@ static int __init boot_mode_init(void)
 	board_boot_mode_init();
 	board_ftm_mode_init();
 	start_reason_init();
-	oppo_charger_reboot();
+	oplus_charger_reboot();
 
 	systeminfo_kobj = kobject_create_and_add("systeminfo", NULL);
 	if (systeminfo_kobj) {
@@ -188,3 +245,5 @@ static int __init boot_mode_init(void)
 }
 
 arch_initcall(boot_mode_init);
+
+MODULE_LICENSE("GPL v2");

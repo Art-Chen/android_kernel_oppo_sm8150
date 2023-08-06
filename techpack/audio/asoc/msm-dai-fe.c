@@ -409,6 +409,36 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.name = "SLIMBUS1_HOSTLESS",
 		.probe = fe_dai_probe,
 	},
+#ifdef OPLUS_FEATURE_MM_ULTRASOUND
+	{
+		.playback = {
+			.stream_name = "SLIMBUS2_HOSTLESS Playback",
+			.aif_name = "SLIM2_DL_HL",
+			.rates = SNDRV_PCM_RATE_8000_384000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+						SNDRV_PCM_FMTBIT_S24_LE),
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min =     8000,
+			.rate_max =     384000,
+		},
+		.capture = {
+			.stream_name = "SLIMBUS2_HOSTLESS Capture",
+			.aif_name = "SLIM2_UL_HL",
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+						SNDRV_PCM_FMTBIT_S24_LE),
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min =     8000,
+			.rate_max =     48000,
+		},
+		.ops = &msm_fe_dai_ops,
+		.name = "SLIMBUS2_HOSTLESS",
+		.probe = fe_dai_probe,
+	},
+	//#add end
+#endif
 	{
 		.playback = {
 			.stream_name = "SLIMBUS3_HOSTLESS Playback",
@@ -577,7 +607,6 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 	},
 	{
 		#ifdef OPLUS_FEATURE_AUDIO_FTM
-		/*Guian.Chen@MULTIMEDIA.AUDIODRIVER.FEATURE.FTM, 2020/08/10, Add for loopback test*/
 		.playback = {
 			.stream_name = "TX3_CDC_DMA_HOSTLESS Playback",
 			.aif_name = "TX3_CDC_DMA_DL_HL",
@@ -620,7 +649,6 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.probe = fe_dai_probe,
 	},
 	#ifdef OPLUS_FEATURE_AUDIO_FTM
-	/*Guian.Chen@MULTIMEDIA.AUDIODRIVER.FEATURE.FTM, 2020/08/10, Add for TX4_CDC_DMA playback hostless*/
 	{
 		.playback = {
 			.stream_name = "TX4_CDC_DMA_HOSTLESS Playback",

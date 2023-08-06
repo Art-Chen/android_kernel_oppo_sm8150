@@ -2,14 +2,17 @@
 #Makefile for oppo project info
 #
 # include $(srctree)/drivers/misc/mediatek/Makefile.custom
-#ifdef OPLUS_BUG_STABILITY
-#wen.luo@BSP.Kernel.Stability, 2018/12/24,  for enable KASAN, use GCC complile tool, add flag -Wno-misleading-indentation
+#ifdef VENDOR_EDIT
 ifeq ($(CONFIG_KASAN),y)
 subdir-ccflags-y += -Wno-format
 endif
-#endif /*OPLUS_BUG_STABILITY*/
+#endif /*VENDOR_EDIT*/
 ifdef CONFIG_OPLUS_SYSTEM_KERNEL_QCOM
-obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= qcom/oplus_project.o 
+ifeq ($(CONFIG_OPLUS_FEATURE_OPROJECT), y)
+obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= qcom/oplus_project.o
+else
+obj-$(CONFIG_OPLUS_FEATURE_OPROJECT)	+= gki/oplus_project.o
+endif
 else
 obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= mtk/oplus_project.o mtk/oplus_project_oldcdt.o
 endif

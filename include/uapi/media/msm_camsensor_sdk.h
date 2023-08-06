@@ -1,3 +1,6 @@
+#if defined(OP_8150_ADAPT)
+#include <media/msm_camsensor_sdk_op.h>
+#else
 #ifndef __UAPI_LINUX_MSM_CAMSENSOR_SDK_H
 #define __UAPI_LINUX_MSM_CAMSENSOR_SDK_H
 
@@ -25,8 +28,7 @@
 //#ifndef VENDOR_EDIT
 //#define I2C_REG_DATA_MAX       (8*1024)
 //#else
-//add by lvchangfu@camera, 20191139 for read eeprom data
-#define I2C_REG_DATA_MAX       (8*1024)
+#define I2C_REG_DATA_MAX       (16*1024)
 //#endif
 
 #define MSM_V4L2_PIX_FMT_META v4l2_fourcc('M', 'E', 'T', 'A') /* META */
@@ -444,4 +446,5 @@ struct msm_camera_i2c_reg_setting_array {
 	unsigned short delay;
 };
 
+#endif
 #endif

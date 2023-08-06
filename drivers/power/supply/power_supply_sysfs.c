@@ -226,7 +226,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 static struct device_attribute power_supply_attrs[] = {
 	/* Properties of type `int' */
 #ifdef VENDOR_EDIT
-/* lizhijie@BSP.CHG.Basic, 2020/02/25, lzj Add for charging */
+	POWER_SUPPLY_ATTR(fast_charge),
 	POWER_SUPPLY_ATTR(charge_technology),
 	POWER_SUPPLY_ATTR(fastcharger),
 	POWER_SUPPLY_ATTR(mmi_charging_enable),
@@ -496,7 +496,6 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(wireless_type),
 	POWER_SUPPLY_ATTR(cep_info),
 #endif /*VENDOR_EDIT*/
-	POWER_SUPPLY_ATTR(soc_ajust),
 	// Chen added for Miui Adapt
 	POWER_SUPPLY_ATTR(quick_charge_type),
 	POWER_SUPPLY_ATTR(soc_decimal),

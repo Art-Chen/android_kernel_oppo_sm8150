@@ -3727,8 +3727,6 @@ static struct snd_soc_dai_driver msm_dai_q6_afe_rx_dai[] = {
 };
 
 #ifdef OPLUS_ARCH_EXTENDS
-/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
- * add for RX-to-TX AFE Loopback for AEC path */
 static struct snd_soc_dai_driver msm_dai_q6_afe_lb_tx_dai[] = {
 	{
 		.capture = {
@@ -6203,8 +6201,6 @@ register_slim_capture:
 				__func__, stream_name);
 		break;
 #ifdef OPLUS_ARCH_EXTENDS
-	/* Yongzhi.Zhang@MULTIMEDIA.AUDIODRIVER.PLATFORM, 2019/08/01,
-	 * add for RX-to-TX AFE Loopback for AEC path */
 	case AFE_LOOPBACK_TX:
 		rc = snd_soc_register_component(&pdev->dev,
 						&msm_dai_q6_component,

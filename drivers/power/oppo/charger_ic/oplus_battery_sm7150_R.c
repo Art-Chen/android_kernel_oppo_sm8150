@@ -5174,7 +5174,6 @@ void smblib_usb_plugin_hard_reset_locked(struct smb_charger *chg)
 #endif
 	
 #ifdef VENDOR_EDIT
-/* Cong.Dai@BSP.TP.Init, 2018/04/08, Add for notify touchpanel status */
 	if (vbus_rising) {
 		switch_usb_state(1);
 	} else {
@@ -5358,7 +5357,6 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 #endif
 	
 #ifdef VENDOR_EDIT
-/* Cong.Dai@BSP.TP.Init, 2018/04/08, Add for notify touchpanel status */
 	if (vbus_rising) {
 		switch_usb_state(1);
 	} else {
@@ -9260,7 +9258,6 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 		rc = smblib_get_prop_from_bms(chg,
 				POWER_SUPPLY_PROP_CHARGE_COUNTER, val);
 #ifdef VENDOR_EDIT
-/* tongfeng.Huang@BSP.CHG.Basic, 2019/02/02,   Add for cts */
 		if (g_oplus_chip) {
 			val->intval = g_oplus_chip->batt_rm * 1000;
 		}

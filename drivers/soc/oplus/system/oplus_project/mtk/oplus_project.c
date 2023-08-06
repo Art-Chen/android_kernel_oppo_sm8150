@@ -46,7 +46,6 @@ extern ProjectInfoCDTType_oldcdt *format;
 static ProjectInfoOCDT *g_project = NULL;
 static int newcdt = -1;
 
-/*Bin.Li@BSP.Bootloader.Bootflows, 2019/05/09, Add for diff manifest*/
 static const char* nfc_feature = "nfc_feature";
 static const char* feature_src = "/vendor/etc/nfc/com.oppo.nfc_feature.xml";
 
@@ -162,28 +161,50 @@ static void init_project_version(void)
 
 
         g_project = &local_ProjectInfoCDT;
-
-        pr_err("KE new cdt newcdt:%d nVersion:%d Project:%d, Dtsi:%d, Audio:%d, nRF:%d, PCB:%d Feature0-9:%d %d %d %d %d %d %d %d %d %d eng_version:%d confidential:%d\n",
-            newcdt,
-            g_project->Version,
-            g_project->nDataBCDT.ProjectNo,
-            g_project->nDataBCDT.DtsiNo,
-            g_project->nDataBCDT.AudioIdx,
-            g_project->nDataSCDT.RF,
-            g_project->nDataSCDT.PCB,
-            g_project->nDataBCDT.Feature[0],
-            g_project->nDataBCDT.Feature[1],
-            g_project->nDataBCDT.Feature[2],
-            g_project->nDataBCDT.Feature[3],
-            g_project->nDataBCDT.Feature[4],
-            g_project->nDataBCDT.Feature[5],
-            g_project->nDataBCDT.Feature[6],
-            g_project->nDataBCDT.Feature[7],
-            g_project->nDataBCDT.Feature[8],
-            g_project->nDataBCDT.Feature[9],
-            g_project->nDataECDT.Version,
-            g_project->nDataECDT.Is_confidential);
-
+    
+	    if(g_project->nDataBCDT.ProjectNo < 100000){
+			pr_err("KE new cdt newcdt:%d nVersion:%d Project:%d, Dtsi:%d, Audio:%d, nRF:%d, PCB:%d Feature0-9:%d %d %d %d %d %d %d %d %d %d eng_version:%d confidential:%d\n",
+				newcdt,
+				g_project->Version,
+				g_project->nDataBCDT.ProjectNo,
+				g_project->nDataBCDT.DtsiNo,
+				g_project->nDataBCDT.AudioIdx,
+				g_project->nDataSCDT.RF,
+				g_project->nDataSCDT.PCB,
+				g_project->nDataBCDT.Feature[0],
+				g_project->nDataBCDT.Feature[1],
+				g_project->nDataBCDT.Feature[2],
+				g_project->nDataBCDT.Feature[3],
+				g_project->nDataBCDT.Feature[4],
+				g_project->nDataBCDT.Feature[5],
+				g_project->nDataBCDT.Feature[6],
+				g_project->nDataBCDT.Feature[7],
+				g_project->nDataBCDT.Feature[8],
+				g_project->nDataBCDT.Feature[9],
+				g_project->nDataECDT.Version,
+				g_project->nDataECDT.Is_confidential);
+		}else{
+			pr_err("KE new cdt newcdt:%d nVersion:%d Project:%X, Dtsi:%X, Audio:%X, nRF:%d, PCB:%d Feature0-9:%d %d %d %d %d %d %d %d %d %d eng_version:%d confidential:%d\n",
+				newcdt,
+				g_project->Version,
+				g_project->nDataBCDT.ProjectNo,
+				g_project->nDataBCDT.DtsiNo,
+				g_project->nDataBCDT.AudioIdx,
+				g_project->nDataSCDT.RF,
+				g_project->nDataSCDT.PCB,
+				g_project->nDataBCDT.Feature[0],
+				g_project->nDataBCDT.Feature[1],
+				g_project->nDataBCDT.Feature[2],
+				g_project->nDataBCDT.Feature[3],
+				g_project->nDataBCDT.Feature[4],
+				g_project->nDataBCDT.Feature[5],
+				g_project->nDataBCDT.Feature[6],
+				g_project->nDataBCDT.Feature[7],
+				g_project->nDataBCDT.Feature[8],
+				g_project->nDataBCDT.Feature[9],
+				g_project->nDataECDT.Version,
+				g_project->nDataECDT.Is_confidential);
+			}
         pr_err("OCP: %d 0x%x %c %d 0x%x %c\n",
             g_project->nDataSCDT.PmicOcp[0],
             g_project->nDataSCDT.PmicOcp[1],
@@ -549,7 +570,6 @@ static void update_manifest(struct proc_dir_entry *parent_1, struct proc_dir_ent
     set_fs(fs);
 }
 
-/*Bin.Li@BSP.Bootloader.Bootflows, 2019/05/09, Add for diff manifest*/
 static int __init update_feature(void)
 {
     mm_segment_t fs;
@@ -577,7 +597,11 @@ static int project_read_func(struct seq_file *s, void *v)
 
     switch(Ptr2UINT32(p)) {
     case PROJECT_VERSION:
-        seq_printf(s, "%d", get_project());
+	    if(get_project() <100000){
+			seq_printf(s, "%d", get_project());
+		}else{
+			seq_printf(s, "%X", get_project()); 
+		}
         break;
     case PCB_VERSION:
         seq_printf(s, "%d", get_PCB_Version());
@@ -802,4 +826,4 @@ arch_initcall(oppo_project_init);
 
 MODULE_DESCRIPTION("OPPO project version");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Joshua <>");
+MODULE_AUTHOR("Joshua <gyx@oppo.com>");

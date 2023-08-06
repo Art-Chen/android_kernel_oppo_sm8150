@@ -50,7 +50,7 @@
 #endif
 
 #include "silead_spi_qcom.h"
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 
 #define FP_DEV_NAME "silead_fp"
 #define FP_DEV_MAJOR 0	/* assigned */

@@ -34,7 +34,7 @@
 
 #include "../include/wakelock.h"
 #include "gf_spi.h"
-#include "../include/oppo_fp_common.h"
+#include "../include/oplus_fp_common.h"
 #if defined(USE_SPI_BUS)
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
@@ -44,12 +44,14 @@
 #ifdef CONFIG_DRM_MSM
 #include <linux/msm_drm_notify.h>
 #endif
-#include <soc/oppo/boot_mode.h>
+#include <soc/oplus/system/boot_mode.h>
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
 #include <linux/uaccess.h>
 #endif
+
+#include "../include/fingerprint_event.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #define FB_EARLY_EVENT_BLANK    0x10
@@ -58,10 +60,6 @@
 #define VER_MAJOR   1
 #define VER_MINOR   2
 #define PATCH_LEVEL 9
-
-#ifndef MSM_DRM_ONSCREENFINGERPRINT_EVENT
-#define MSM_DRM_ONSCREENFINGERPRINT_EVENT 0x10
-#endif
 
 #define WAKELOCK_HOLD_TIME 500 /* in ms */
 #define SENDCMD_WAKELOCK_HOLD_TIME 1000 /* in ms */
@@ -103,6 +101,8 @@ struct gf_key_map maps[] = {
     {EV_KEY, GF_NAV_INPUT_HEAVY},
 #endif
 };
+
+static int gf_opticalfp_irq_handler(struct fp_underscreen_info *tp_info);
 
 static void gf_enable_irq(struct gf_dev *gf_dev)
 {
@@ -308,6 +308,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
     char msg = GF_NET_EVENT_IRQ;
     wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
     sendnlmsg(&msg);
+    send_fingerprint_message(E_FP_SENSOR, msg, NULL, 0);
 #elif defined (GF_FASYNC)
     struct gf_dev *gf_dev = &gf;
     if (gf_dev->async) {
@@ -344,6 +345,20 @@ static void irq_cleanup(struct gf_dev *gf_dev)
     free_irq(gf_dev->irq, gf_dev);//need modify
 }
 
+static void gf_auto_send_touchdown()
+{
+    struct fp_underscreen_info tp_info;
+    tp_info.touch_state = 1;
+    gf_opticalfp_irq_handler(&tp_info);
+}
+
+static void gf_auto_send_touchup()
+{
+    struct fp_underscreen_info tp_info;
+    tp_info.touch_state = 0;
+    gf_opticalfp_irq_handler(&tp_info);
+}
+
 static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     struct gf_dev *gf_dev = &gf;
@@ -374,7 +389,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     }
 
     if (gf_dev->device_available == 0) {
-        if ((cmd == GF_IOC_ENABLE_POWER) || (cmd == GF_IOC_DISABLE_POWER)) {
+        if ((cmd == GF_IOC_ENABLE_POWER) || (cmd == GF_IOC_DISABLE_POWER) || (cmd == GF_IOC_POWER_RESET)) {
             pr_info("power cmd\n");
         } else {
             pr_info("Sensor is power off currently. \n");
@@ -405,9 +420,13 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             pr_info("%s GF_IOC_RESET. \n", __func__);
             gf_hw_reset(gf_dev, 10);
             break;
+        case GF_IOC_POWER_RESET:
+            pr_info("%s GF_IOC_POWER_RESET. \n", __func__);
+            gf_power_reset(gf_dev);
+            gf_dev->device_available = 1;
+            break;
         case GF_IOC_INPUT_KEY_EVENT:
-            if (copy_from_user(&gf_key, (struct gf_key *)arg, sizeof(struct gf_key)))
-            {
+            if (copy_from_user(&gf_key, (struct gf_key *)arg, sizeof(struct gf_key))) {
                 pr_info("Failed to copy input key event from user to kernel\n");
                 retval = -EFAULT;
                 break;
@@ -458,6 +477,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             irq_cleanup(gf_dev);
             gf_cleanup(gf_dev);
             pr_debug("%s GF_IOC_REMOVE\n", __func__);
+            send_fingerprint_message(E_FP_HAL, 0, NULL, 0);
             break;
 
         case GF_IOC_CHIP_INFO:
@@ -481,6 +501,18 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
         case GF_IOC_CLEAN_TOUCH_FLAG:
             lasttouchmode = 0;
             pr_debug("%s GF_IOC_CLEAN_TOUCH_FLAG\n", __func__);
+            break;
+        case GF_IOC_AUTO_SEND_TOUCHDOWN:
+            pr_info("%s GF_IOC_AUTO_SEND_TOUCHDOWN\n", __func__);
+            gf_auto_send_touchdown();
+            break;
+        case GF_IOC_AUTO_SEND_TOUCHUP:
+            pr_info("%s GF_IOC_AUTO_SEND_TOUCHUP\n", __func__);
+            gf_auto_send_touchup();
+            break;
+        case GF_IOC_STOP_WAIT_INTERRUPT_EVENT:
+            pr_info("%s GF_IOC_STOP_WAIT_INTERRUPT_EVENT\n", __func__);
+            send_fingerprint_message(E_FP_HAL, 0, NULL, 0);
             break;
         default:
             pr_warn("unsupport cmd:0x%x\n", cmd);
@@ -523,22 +555,21 @@ static int gf_open(struct inode *inode, struct file *filp)
             if (gf_dev->users == 1) {
                 status = gf_parse_dts(gf_dev);
                 if (status)
-                    goto err_parse_dt;
+                    goto out;
 
                 status = irq_setup(gf_dev);
-                if (status)
-                    goto err_irq;
+                if (status) {
+                    gf_cleanup(gf_dev);
+                    goto out;
+                }
             }
         }
     } else {
         pr_info("No device for minor %d\n", iminor(inode));
     }
-    mutex_unlock(&device_list_lock);
 
-    return status;
-err_irq:
-    gf_cleanup(gf_dev);
-err_parse_dt:
+out:
+    mutex_unlock(&device_list_lock);
     return status;
 }
 
@@ -575,6 +606,27 @@ static int gf_release(struct inode *inode, struct file *filp)
     return status;
 }
 
+ssize_t gf_read(struct file * f, char __user *buf, size_t count, loff_t *offset)
+{
+    struct fingerprint_message_t *rcv_msg = NULL;
+    pr_info("gf_read enter");
+    if (buf == NULL || f == NULL || count != sizeof(struct fingerprint_message_t)) {
+        return 0;
+    }
+    pr_info("begin wait for driver event");
+    if (wait_fingerprint_event(NULL, 0, &rcv_msg)) {
+        return -2;
+    }
+    if (rcv_msg == NULL) {
+        return -3;
+    }
+    if (copy_to_user(buf, rcv_msg, count)) {
+        return -EFAULT;
+    }
+    pr_info("end wait for driver event");
+    return count;
+}
+
 static const struct file_operations gf_fops = {
     .owner = THIS_MODULE,
     /* REVISIT switch to aio primitives, so that userspace
@@ -590,6 +642,7 @@ static const struct file_operations gf_fops = {
 #ifdef GF_FASYNC
     .fasync = gf_fasync,
 #endif
+    .read = gf_read,
 };
 
 static int goodix_fb_state_chg_callback(struct notifier_block *nb,
@@ -610,6 +663,8 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
         switch (op_mode) {
             case 0:
                 pr_info("[%s] UI disappear\n", __func__);
+                msg = GF_NET_EVENT_UI_DISAPPEAR;
+                sendnlmsg(&msg);
                 break;
             case 1:
                 pr_info("[%s] UI ready \n", __func__);
@@ -620,6 +675,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
                 pr_info("[%s] Unknown MSM_DRM_ONSCREENFINGERPRINT_EVENT\n", __func__);
                 break;
         }
+        send_fingerprint_message(E_FP_LCD, op_mode, NULL, 0);
         return retval;
     }
 
@@ -632,6 +688,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 #if defined(GF_NETLINK_ENABLE)
                     msg = GF_NET_EVENT_FB_BLACK;
                     sendnlmsg(&msg);
+                    send_fingerprint_message(E_FP_SENSOR, msg, NULL, 0);
 #elif defined (GF_FASYNC)
                     if (gf_dev->async) {
                         kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
@@ -645,6 +702,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 #if defined(GF_NETLINK_ENABLE)
                     msg = GF_NET_EVENT_FB_UNBLACK;
                     sendnlmsg(&msg);
+                    send_fingerprint_message(E_FP_SENSOR, msg, NULL, 0);
 #elif defined (GF_FASYNC)
                     if (gf_dev->async) {
                         kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
@@ -676,9 +734,11 @@ static int gf_opticalfp_irq_handler(struct fp_underscreen_info *tp_info)
         msg = GF_NET_EVENT_TP_TOUCHDOWN;
         sendnlmsg(&msg);
         lasttouchmode = tp_info->touch_state;
+        send_fingerprint_message(E_FP_TP, tp_info->touch_state, tp_info, sizeof(struct fp_underscreen_info));
     } else {
         msg = GF_NET_EVENT_TP_TOUCHUP;
         sendnlmsg(&msg);
+        send_fingerprint_message(E_FP_TP, tp_info->touch_state, tp_info, sizeof(struct fp_underscreen_info));
         lasttouchmode = tp_info->touch_state;
     }
 

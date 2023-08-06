@@ -68,6 +68,9 @@ static void scm_disable_sdi(void);
 static int download_mode = 1;
 static bool force_warm_reboot;
 
+static bool force_warm_reboot_into_recovery = false;
+module_param(force_warm_reboot_into_recovery, bool, 0644);
+
 #ifdef CONFIG_QCOM_DLOAD_MODE
 #define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
 #define DL_MODE_PROP "qcom,msm-imem-download_mode"
@@ -357,11 +360,13 @@ static void msm_restart_prepare(const char *cmd)
 				(cmd != NULL && cmd[0] != '\0'));
 	}
 
-	if (in_panic){
+	if (in_panic || force_warm_reboot_into_recovery) {
 		//warm reset
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 		qpnp_pon_set_restart_reason(
-					PON_RESTART_REASON_RECOVERY);
+					force_warm_reboot_into_recovery ? 
+					PON_RESTART_REASON_RECOVERY : 
+					PON_RESTART_REASON_KERNEL);
 		flush_cache_all();
 
 		/*outer_flush_all is not supported by 64bit kernel*/

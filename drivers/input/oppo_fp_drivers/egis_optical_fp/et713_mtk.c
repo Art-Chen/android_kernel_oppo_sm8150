@@ -71,7 +71,7 @@ struct of_device_id egistec_match_table[] = {
 
 struct of_device_id et713_spi_of_match[] = {
 //  { .compatible = "mediatek,fingerspi-fp", },
-    { .compatible = "oppo,oppo_fp", },
+    { .compatible = "oplus,oplus_fp", },
     {}
 };
 

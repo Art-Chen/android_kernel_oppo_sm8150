@@ -230,7 +230,11 @@
 				qcom,id = <2>;
 				qcom,current-ma = <500>;
 				qcom,duration-ms = <1280>;
+				/*#ifdef VENDOR_EDIT*/
+				/*qcom,ires-ua = <12500>;*/
+				/*#else*/
 				qcom,ires-ua = <5000>;
+				/*#endif*/
 				qcom,hdrm-voltage-mv = <325>;
 				qcom,hdrm-vol-hi-lo-win-mv = <100>;
 				/* status = "disabled"; */
@@ -291,7 +295,6 @@
 				label = "switch";
 				qcom,led-name = "led:switch_2";
 				/* #ifdef VENDOR_EDIT */
-				/* modify by hongbo.dai@camera 20181114, for front cam flash*/
 				qcom,led-mask = <4>;
 				/* #else */
 				//qcom,led-mask = <3>;
@@ -299,15 +302,14 @@
 				qcom,default-led-trigger = "switch2_trigger";
 			};
 			/* #ifdef VENDOR_EDIT */
-			/* modify by hongbo.dai@camera 20181124, for back dual flash*/
 			pm8150l_switch3: qcom,led_switch_3 {
 				label = "switch";
 				qcom,led-name = "led:switch_3";
 				qcom,led-mask = <3>;
 				qcom,default-led-trigger = "switch3_trigger";
 			};
-			/*#endif*/            
-		};
+			/*#endif*/
+                };
 
 		pm8150l_wled: qcom,wled@d800 {
 			compatible = "qcom,pm8150l-spmi-wled";

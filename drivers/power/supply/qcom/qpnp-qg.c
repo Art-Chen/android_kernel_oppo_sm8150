@@ -353,7 +353,11 @@ static int qg_config_s2_state(struct qpnp_qg *chip,
 		acc_length = chip->dt.sleep_s2_acc_length;
 		break;
 	case S2_DEFAULT:
+#ifdef OPLUS_FEATURE_CHG_BASIC
+		fifo_length = chip->dt.fast_chg_s2_fifo_length;
+#else
 		fifo_length = chip->dt.s2_fifo_length;
+#endif
 		acc_interval = chip->dt.s2_acc_intvl_ms;
 		acc_length = chip->dt.s2_acc_length;
 		break;
@@ -2155,10 +2159,10 @@ static int qg_psy_get_property(struct power_supply *psy,
 /*zhouhaikang@BSP.CHG.Basic,2020/10/31,add for chg*/
 		if(oplus_vooc_get_fastchg_ing()) {
 			chip->bp.float_volt_uv = 4400000;
-		} else if (0 == oplus_chg_get_ffc_status()){
+		} else {
 			chip->bp.float_volt_uv = 4430000;
 		}
-		pr_err("kilody: float_volt_uv=%d\n",  chip->bp.float_volt_uv);
+		/*pr_err("kilody: float_volt_uv=%d\n",  chip->bp.float_volt_uv);*/
 #endif
 		pval->intval = chip->bp.float_volt_uv;
 		break;

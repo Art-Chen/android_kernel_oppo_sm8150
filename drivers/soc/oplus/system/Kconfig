@@ -35,3 +35,4 @@ source "drivers/soc/oplus/system/mdmrst/Kconfig"
 #ChenGuoyao@NETWORK.SIM,2020/06/10, Add for eSIM
 source "drivers/soc/oplus/system/oppo_gpio/Kconfig"
 #endif /* OPLUS_FEATURE_ESIM */
+source "drivers/soc/oplus/system/qcom_pmicwd/Kconfig"

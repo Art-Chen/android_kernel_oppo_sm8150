@@ -41,8 +41,6 @@
 #define OPERATOR_NAME            (0xE)
 #define PROJECT_TEST            (0x1F)
 
-static ProjectInfoOldCDT *g_project_old_cdt = NULL;
-
 static ProjectInfoOCDT *g_project = NULL;
 
 static struct pcb_match pcb_str[] = {
@@ -99,7 +97,7 @@ static void init_project_version(void)
     char *PCB_version_name = NULL;
     uint16_t index = 0;
 
-    if (g_project || g_project_old_cdt) {
+    if (g_project) {
         return;
 	}
     /*get project info from smem*/
@@ -115,67 +113,31 @@ static void init_project_version(void)
         g_project = (ProjectInfoOCDT *)smem_addr;
         if (g_project == ERR_PTR(-EPROBE_DEFER)) {
             g_project = NULL;
-			pr_err("Art_Chen Hack: ColorOS 11 New CDT init failed, trying ColorOS 7 Old CDT");
-			g_project_old_cdt = (ProjectInfoOldCDT *)smem_addr;
-
-			if (g_project_old_cdt == ERR_PTR(-EPROBE_DEFER)) {
-				g_project_old_cdt == NULL;
-				return;
-			}
-        } else if (g_project->nDataBCDT.ProjectNo != 19081) {
-			pr_err("Art_Chen Hack: ColorOS 11 New CDT init maybe failed, project is not 19081, trying ColorOS 7 Old CDT");
-			g_project_old_cdt = (ProjectInfoOldCDT *)smem_addr;
-
-			if (g_project_old_cdt->nproject != 19081) {
-				pr_err("Art_Chen Hack: ColorOS 7 Old CDT init failed, project is not 19081, still using ColorOS 11 CDT!");
-				g_project_old_cdt = NULL;
-			} else {
-				g_project = NULL;
-				pr_err("Art_Chen Hack: ColorOS 7 Old CDT init succeed, project is %d", g_project_old_cdt->nproject);
-			}
-		}
-        if (g_project) {
-            do {
-                if(pcb_str[index].version == g_project->nDataSCDT.PCB){
-                    PCB_version_name = pcb_str[index].str;
-                    break;
-                }
-                index++;
-            } while (index < sizeof(pcb_str)/sizeof(struct pcb_match));
-
-            pr_err("KE Project:%d, Audio:%d, nRF:%d, PCB:%s\n",
-                g_project->nDataBCDT.ProjectNo,
-                g_project->nDataBCDT.AudioIdx,
-                g_project->nDataSCDT.RF,PCB_version_name);
-            pr_err("OCP: %d 0x%x %c %d 0x%x %c\n",
-                g_project->nDataSCDT.PmicOcp[0],
-                g_project->nDataSCDT.PmicOcp[1],
-                g_project->nDataSCDT.PmicOcp[2],
-                g_project->nDataSCDT.PmicOcp[3],
-                g_project->nDataSCDT.PmicOcp[4],
-                g_project->nDataSCDT.PmicOcp[5]);
-
-		    pr_err("get_project:%d, is_new_cdt:%d, get_PCB_Version:%d, get_Oppo_Boot_Mode:%d, get_Modem_Version:%d\n", 
-		            get_project(),
-		            is_new_cdt(),
-		            get_PCB_Version(),
-		            get_Oppo_Boot_Mode(),
-		            get_Modem_Version());
-		    pr_err("get_Operator_Version:%d, get_dtsiNo:%d, get_audio_project:%d\n",
-		            get_Operator_Version(),
-		            get_dtsiNo(),
-		            get_audio());
-
-        } else if (g_project_old_cdt) {
-            pr_err("engVersion=%d\n", g_project_old_cdt->nEngVersion);
-            pr_err("ProjectInfoOldCDT=%d, smem_size=%d\n", sizeof(ProjectInfoOldCDT),smem_size);
+            return;
         }
+
+        do {
+            if(pcb_str[index].version == g_project->nDataSCDT.PCB){
+                PCB_version_name = pcb_str[index].str;
+                break;
+            }
+            index++;
+        }while(index < sizeof(pcb_str)/sizeof(struct pcb_match));
+
+        pr_err("KE Project:%d, Audio:%d, nRF:%d, PCB:%s\n",
+            g_project->nDataBCDT.ProjectNo,
+            g_project->nDataBCDT.AudioIdx,
+            g_project->nDataSCDT.RF,PCB_version_name);
+        pr_err("OCP: %d 0x%x %c %d 0x%x %c\n",
+            g_project->nDataSCDT.PmicOcp[0],
+            g_project->nDataSCDT.PmicOcp[1],
+            g_project->nDataSCDT.PmicOcp[2],
+            g_project->nDataSCDT.PmicOcp[3],
+            g_project->nDataSCDT.PmicOcp[4],
+            g_project->nDataSCDT.PmicOcp[5]);
     }
-        
 
-        
-
-    if(is_new_cdt() && g_project){
+    if(is_new_cdt()){
 		if(oppo_info){
 			remove_proc_entry("oppoVersion/operatorName", NULL);
 			pr_err("remove proc operatorName\n");
@@ -199,6 +161,16 @@ static void init_project_version(void)
 		}
 	}
 
+    pr_err("get_project:%d, is_new_cdt:%d, get_PCB_Version:%d, get_Oppo_Boot_Mode:%d, get_Modem_Version:%d\n", 
+            get_project(),
+            is_new_cdt(),
+            get_PCB_Version(),
+            get_Oppo_Boot_Mode(),
+            get_Modem_Version());
+    pr_err("get_Operator_Version:%d, get_dtsiNo:%d, get_audio_project:%d\n",
+            get_Operator_Version(),
+            get_dtsiNo(),
+            get_audio());
     pr_err("oppo project info loading finished\n");
 
 }
@@ -217,7 +189,7 @@ unsigned int get_project(void)
 {
     init_project_version();
 
-    return g_project? g_project->nDataBCDT.ProjectNo : g_project_old_cdt ? g_project_old_cdt->nproject : 0;
+    return g_project? g_project->nDataBCDT.ProjectNo : 0;
 }
 EXPORT_SYMBOL(get_project);
 
@@ -242,7 +214,7 @@ unsigned int get_PCB_Version(void)
 {
     init_project_version();
 
-    return g_project? g_project->nDataSCDT.PCB : g_project_old_cdt ? g_project_old_cdt->npcbversion : -EINVAL;
+    return g_project? g_project->nDataSCDT.PCB:-EINVAL;
 }
 EXPORT_SYMBOL(get_PCB_Version);
 
@@ -250,7 +222,7 @@ unsigned int get_Oppo_Boot_Mode(void)
 {
     init_project_version();
 
-    return g_project?g_project->nDataSCDT.OppoBootMode : g_project_old_cdt ? g_project_old_cdt->noppobootmode : 0;
+    return g_project?g_project->nDataSCDT.OppoBootMode:0;
 }
 EXPORT_SYMBOL(get_Oppo_Boot_Mode);
 
@@ -259,7 +231,7 @@ int32_t get_Modem_Version(void)
     init_project_version();
 
     /*cdt return modem,ocdt return RF*/
-    return g_project?g_project->nDataSCDT.RF: g_project_old_cdt ? g_project_old_cdt->nmodem:-EINVAL;
+    return g_project?g_project->nDataSCDT.RF:-EINVAL;
 }
 EXPORT_SYMBOL(get_Modem_Version);
 
@@ -267,10 +239,10 @@ int32_t get_Operator_Version(void)
 {
     init_project_version();
 
-    if(!is_new_cdt() && g_project)
+    if(!is_new_cdt())
         return g_project?g_project->nDataSCDT.Operator:-EINVAL;
     else
-        return g_project_old_cdt?g_project_old_cdt->noperator:-EINVAL;
+        return -EINVAL;
 }
 EXPORT_SYMBOL(get_Operator_Version);
 
@@ -315,7 +287,7 @@ unsigned int get_eng_version(void)
 {
     init_project_version();
 
-    return g_project?g_project->nDataECDT.Version : g_project_old_cdt ? g_project_old_cdt->nEngVersion:-EINVAL;
+    return g_project?g_project->nDataECDT.Version:-EINVAL;
 }
 EXPORT_SYMBOL(get_eng_version);
 
@@ -357,14 +329,14 @@ EXPORT_SYMBOL(is_confidential);
 
 uint32_t get_oppo_feature(enum F_INDEX index)
 {
-    if(is_new_cdt() && g_project){
+    if(is_new_cdt()){
         init_project_version();
         if (index < 1 || index > FEATURE_COUNT)
             return 0;
         return g_project?g_project->nDataBCDT.Feature[index-1]:0;
     }
     else
-	return 0;
+        return 0;
 }
 EXPORT_SYMBOL(get_oppo_feature);
 
@@ -387,25 +359,18 @@ EXPORT_SYMBOL(get_serialID);
 
 static void dump_ocp_info(struct seq_file *s)
 {
-	int i = 0;
     init_project_version();
 
-    if (!g_project && !g_project_old_cdt) return;
-	
-	if (g_project) {
-	    seq_printf(s, "ocp: %d 0x%x %d 0x%x %c %c",
-	        g_project->nDataSCDT.PmicOcp[0],
-	        g_project->nDataSCDT.PmicOcp[1],
-	        g_project->nDataSCDT.PmicOcp[2],
-	        g_project->nDataSCDT.PmicOcp[3],
-	        g_project->nDataSCDT.PmicOcp[4],
-	        g_project->nDataSCDT.PmicOcp[5]);
-	} else {
-		for (i = 0;i < 4;i++) {
-			printk(" %d", g_project_old_cdt->npmicocp[i]);
-		}
-		printk("\n");
-	}
+    if (!g_project)
+        return;
+
+    seq_printf(s, "ocp: %d 0x%x %d 0x%x %c %c",
+        g_project->nDataSCDT.PmicOcp[0],
+        g_project->nDataSCDT.PmicOcp[1],
+        g_project->nDataSCDT.PmicOcp[2],
+        g_project->nDataSCDT.PmicOcp[3],
+        g_project->nDataSCDT.PmicOcp[4],
+        g_project->nDataSCDT.PmicOcp[5]);
 }
 
 static void dump_serial_info(struct seq_file *s)
@@ -422,26 +387,20 @@ static void dump_oppo_feature(struct seq_file *s)
 {
     init_project_version();
 
-    if (!g_project && !g_project_old_cdt) return;
-	if (g_project) {
-	    seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-	        g_project->nDataBCDT.Feature[0],
-	        g_project->nDataBCDT.Feature[1],
-	        g_project->nDataBCDT.Feature[2],
-	        g_project->nDataBCDT.Feature[3],
-	        g_project->nDataBCDT.Feature[4],
-	        g_project->nDataBCDT.Feature[5],
-	        g_project->nDataBCDT.Feature[6],
-	        g_project->nDataBCDT.Feature[7],
-	        g_project->nDataBCDT.Feature[8],
-	        g_project->nDataBCDT.Feature[9]);
-	} else {
-	    seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-	        g_project_old_cdt->npmicocp[0],
-	        g_project_old_cdt->npmicocp[1],
-	        g_project_old_cdt->npmicocp[2],
-	        g_project_old_cdt->npmicocp[3]);
-	}
+    if (!g_project)
+        return;
+
+    seq_printf(s, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+        g_project->nDataBCDT.Feature[0],
+        g_project->nDataBCDT.Feature[1],
+        g_project->nDataBCDT.Feature[2],
+        g_project->nDataBCDT.Feature[3],
+        g_project->nDataBCDT.Feature[4],
+        g_project->nDataBCDT.Feature[5],
+        g_project->nDataBCDT.Feature[6],
+        g_project->nDataBCDT.Feature[7],
+        g_project->nDataBCDT.Feature[8],
+        g_project->nDataBCDT.Feature[9]);
     return;
 }
 
@@ -491,33 +450,48 @@ static void dump_secure_stage(struct seq_file *s)
 
 static void update_manifest(struct proc_dir_entry *parent_1, struct proc_dir_entry *parent_2)
 {
-    static const char* manifest_src[2] = {
-        "/vendor/odm/etc/vintf/manifest_ssss.xml",
-        "/vendor/odm/etc/vintf/manifest_dsds.xml",
-    };
-    mm_segment_t fs;
-    char * substr = strstr(boot_command_line, "simcardnum.doublesim=");
+	static const char *manifest_src[4] = {
+		"/vendor/odm/etc/vintf/manifest_ssss.xml",
+		"/vendor/odm/etc/vintf/manifest_dsds.xml",
+		"/vendor/odm/etc/vintf/manifest_ssss_noese.xml",
+		"/vendor/odm/etc/vintf/manifest_dsds_noese.xml",
+	};
+	mm_segment_t fs;
+	char * substr = strstr(boot_command_line, "simcardnum.doublesim=");
+	char * substr_ese = strstr(boot_command_line, "androidboot.no_ese");
 
-    if(!substr)
-        return;
+	if(!substr)
+		return;
 
-    substr += strlen("simcardnum.doublesim=");
+	substr += strlen("simcardnum.doublesim=");
 
-    fs = get_fs();
-    set_fs(KERNEL_DS);
+	fs = get_fs();
+	set_fs(KERNEL_DS);
 
-    if (parent_1 && parent_2) {
-        if (substr[0] == '0') {
-            proc_symlink("manifest", parent_1, manifest_src[0]);//single sim
-            proc_symlink("manifest", parent_2, manifest_src[0]);
-        }
-        else {
-            proc_symlink("manifest", parent_1, manifest_src[1]);
-            proc_symlink("manifest", parent_2, manifest_src[1]);
-        }
-    }
+	if (parent_1 && parent_2) {
+		if (substr[0] == '0') {
+			if (substr_ese) {
+				proc_symlink("manifest", parent_1, manifest_src[2]);
+				proc_symlink("manifest", parent_2, manifest_src[2]);
+			}
+			else {
+				proc_symlink("manifest", parent_1, manifest_src[0]);
+				proc_symlink("manifest", parent_2, manifest_src[0]);
+			}
+		}
+		else {
+			if (substr_ese) {
+				proc_symlink("manifest", parent_1, manifest_src[3]);
+				proc_symlink("manifest", parent_2, manifest_src[3]);
+			}
+			else {
+				proc_symlink("manifest", parent_1, manifest_src[1]);
+				proc_symlink("manifest", parent_2, manifest_src[1]);
+			}
+		}
+	}
 
-    set_fs(fs);
+	set_fs(fs);
 }
 
 static void update_telephony_manifest(struct proc_dir_entry *parent_1, struct proc_dir_entry *parent_2)
@@ -557,7 +531,6 @@ static int project_read_func(struct seq_file *s, void *v)
 
     switch(Ptr2UINT32(p)) {
     case PROJECT_VERSION:
-        //chenguanhua@BSP.bootloader.bootflow, 2020/09/30, modify for compatible of hexadecimal project model
         if (get_project() > 0x20000) {
             seq_printf(s, "%X", get_project());
         } else {
@@ -780,4 +753,4 @@ arch_initcall(oppo_project_init);
 
 MODULE_DESCRIPTION("OPPO project version");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Joshua <>");
+MODULE_AUTHOR("Joshua <gyx@oppo.com>");

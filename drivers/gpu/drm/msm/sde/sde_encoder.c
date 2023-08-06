@@ -1937,7 +1937,14 @@ static int _sde_encoder_update_rsc_client(
 	u32 qsync_mode = 0;
 	struct msm_drm_private *priv;
 	struct sde_kms *sde_kms;
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
+	int  lp_mode = -1;
+	struct list_head *connector_list;
+	struct drm_connector *conn = NULL, *conn_iter;
 
+	struct dsi_display *display = get_main_display();
+
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
 	if (!drm_enc || !drm_enc->dev) {
 		SDE_ERROR("invalid encoder arguments\n");
 		return -EINVAL;
@@ -1971,6 +1978,11 @@ static int _sde_encoder_update_rsc_client(
 	}
 
 	sde_kms = to_sde_kms(priv->kms);
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
+	if ( display && display->panel && display->panel->oppo_priv.prj_flag ) {
+		connector_list = &sde_kms->dev->mode_config.connector_list;
+	}
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
 	/**
 	 * only primary command mode panel without Qsync can request CMD state.
 	 * all other panels/displays can request for VID state including
@@ -2010,8 +2022,22 @@ static int _sde_encoder_update_rsc_client(
 	if (IS_SDE_MAJOR_SAME(sde_kms->core_rev, SDE_HW_VER_620) &&
 			(rsc_state == SDE_RSC_VID_STATE))
 		rsc_state = SDE_RSC_CLK_STATE;
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
+	if ( display && display->panel && display->panel->oppo_priv.prj_flag ) {
+		list_for_each_entry(conn_iter, connector_list, head)
+			if (conn_iter->encoder == drm_enc)
+				conn = conn_iter;
 
-	SDE_EVT32(rsc_state, qsync_mode);
+		if (conn && conn->state) {
+			lp_mode = sde_connector_get_property(conn->state, CONNECTOR_PROP_LP);
+			if ((lp_mode == SDE_MODE_DPMS_LP1 || lp_mode == SDE_MODE_DPMS_LP2) && enable)
+				rsc_state = SDE_RSC_CLK_STATE;
+                }
+			SDE_EVT32(rsc_state, qsync_mode, lp_mode);
+	} else {
+		SDE_EVT32(rsc_state, qsync_mode);
+	}
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
 
 	prefill_lines = config ? mode_info.prefill_lines +
 		config->inline_rotate_prefill : mode_info.prefill_lines;
@@ -2099,6 +2125,15 @@ static int _sde_encoder_update_rsc_client(
 		if (crtc->base.id == wait_vblank_crtc_id) {
 			ret = sde_encoder_wait_for_event(drm_enc,
 					MSM_ENC_VBLANK);
+#ifdef OPLUS_FEATURE_AOD_RAMLESS
+			if ( display && display->panel && display->panel->oppo_priv.prj_flag ) {
+				if (ret == -EWOULDBLOCK) {
+					SDE_EVT32(DRMID(drm_enc), wait_vblank_crtc_id, crtc->base.id);
+					msleep(PRIMARY_VBLANK_WORST_CASE_MS);
+					ret = 0;
+				}
+			}
+#endif /* OPLUS_FEATURE_AOD_RAMLESS */
 		} else if (primary_crtc->state->active &&
 				!drm_atomic_crtc_needs_modeset(
 						primary_crtc->state)) {

@@ -587,8 +587,7 @@ int qg_scale_soc(struct qpnp_qg *chip, bool force_soc)
 		scale_soc_stop(chip);
 		goto done;
 	}
-#ifndef OPLUS_FEATURE_CHG_BASIC
-/*zhouhaikang@BSP.CHG.Basic,2020/11/12,add for chg*/
+#ifdef OPLUS_FEATURE_CHG_BASIC
 	update_msoc(chip);
 #endif
 	if (is_scaling_required(chip)) {

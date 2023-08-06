@@ -19,7 +19,5 @@
 	compatible = "qcom,sm8150";
 	qcom,pmic-name = "PM8150";
 	qcom,board-id = <0 0>;
-	/*oppo,prjversion. first one is the count of projects*/
-	oppo,prjversion = <1 19081>;
 	oppo,dtsi_no = <19081>;
 };

@@ -5,7 +5,6 @@
 ** Description : oppo onscreenfingerprint feature
 ** Version : 1.0
 ** Date : 2020/04/15
-** Author : Qianxu@MM.Display.LCD Driver
 **
 ** ------------------------------- Revision History: -----------
 **  <author>        <data>        <version >        <desc>
@@ -23,12 +22,14 @@ bool oppo_pcc_enabled = false;
 bool oppo_skip_pcc = false;
 bool oppo_fp_mode = false;
 
+
 struct drm_msm_pcc oppo_save_pcc;
 
 extern int oppo_underbrightness_alpha;
 extern int oppo_dimlayer_dither_threshold;
 extern u32 oppo_last_backlight;
 extern int oppo_dimlayer_hbm;
+int oppo_aod_dim_alpha = CUST_A_NO;
 extern int oppo_panel_alpha;
 extern int hbm_mode;
 extern bool oppo_ffl_trigger_finish;
@@ -82,6 +83,12 @@ static struct oppo_brightness_alpha brightness_alpha_lut_dc[] = {
 	{260, 0x00},
 };
 
+void oppo_set_aod_dim_alpha(int cust)
+{
+	oppo_aod_dim_alpha = cust;
+	DSI_DEBUG("set oppo_aod_dim_alpha = %d\n", oppo_aod_dim_alpha);
+}
+
 int oppo_get_panel_brightness(void)
 {
 	struct dsi_display *display = get_main_display();
@@ -93,6 +100,15 @@ int oppo_get_panel_brightness(void)
 	return display->panel->bl_config.bl_level;
 }
 
+int oppo_get_panel_power_mode(void)
+{
+	struct dsi_display *display = get_main_display();
+
+	if (!display)
+		return -1;
+
+	return display->panel->power_mode;
+}
 
 static int bl_to_alpha(int brightness)
 {
@@ -159,9 +175,18 @@ static int bl_to_alpha_dc(int brightness)
 static int brightness_to_alpha(int brightness)
 {
 	int alpha;
+	struct dsi_display *display = get_main_display();
+
+	if (!display) {
+		return 0;
+	}
 
 	if (brightness == 0 || brightness == 1) {
-		brightness = oppo_last_backlight;
+		if (!strcmp(display->panel->oppo_priv.vendor_name, "AMS643YE01")) {
+			/*do nothing*/
+		} else {
+			brightness = oppo_last_backlight;
+		}
 	}
 
 	if (oppo_dimlayer_hbm) {
@@ -185,7 +210,13 @@ static int oppo_get_panel_brightness_to_alpha(void)
 	if (oppo_panel_alpha) {
 		return oppo_panel_alpha;
 	}
-
+	/* force dim layer alpha in AOD scene */
+	if (oppo_aod_dim_alpha != CUST_A_NO) {
+		if (oppo_aod_dim_alpha == CUST_A_TRANS)
+			return 0;
+		else if (oppo_aod_dim_alpha == CUST_A_OPAQUE)
+			return 255;
+	}
 	if (hbm_mode) {
 		return 0;
 	}
@@ -197,7 +228,6 @@ static int oppo_get_panel_brightness_to_alpha(void)
 	return brightness_to_alpha(display->panel->bl_config.bl_level);
 }
 
-/*Mark.Yao@PSW.MM.Display.LCD.Stable,2019-10-24 add for fingerprint */
 int dsi_panel_parse_oppo_fod_config(struct dsi_panel *panel)
 {
 	int rc = 0;
@@ -265,11 +295,78 @@ error:
 	return rc;
 }
 
+static int dsi_panel_parse_oppo_backlight_remapping_config(struct dsi_panel *panel)
+{
+	int rc = 0;
+	int i;
+	u32 length = 0;
+	u32 count = 0;
+	u32 size = 0;
+	u32 *arr_32 = NULL;
+	const u32 *arr;
+	struct dsi_parser_utils *utils = &panel->utils;
+	struct oppo_brightness_alpha *bl_remap;
+
+	panel->oppo_priv.bl_interpolate_nosub = utils->read_bool(utils->data,
+			"oppo,bl_interpolate_nosub");
+
+	arr = utils->get_property(utils->data, "oppo,dsi-brightness-remapping", &length);
+	if (!arr) {
+		DSI_DEBUG("[%s] oppo,dsi-brightness-remapping not found\n", panel->name);
+		return -EINVAL;
+	}
+
+	if (length & 0x1) {
+		DSI_ERR("[%s] oppo,dsi-brightness-remapping length error\n", panel->name);
+		return -EINVAL;
+	}
+
+	DSI_INFO("oppo,dsi-brightness-remapping's length = %d, interpolate_nosub = %d\n", length, panel->oppo_priv.bl_interpolate_nosub ? 1 : 0);
+	length = length / sizeof(u32);
+	size = length * sizeof(u32);
+
+	arr_32 = kzalloc(size, GFP_KERNEL);
+	if (!arr_32) {
+		rc = -ENOMEM;
+		goto error;
+	}
+
+	rc = utils->read_u32_array(utils->data, "oppo,dsi-brightness-remapping",
+			arr_32, length);
+	if (rc) {
+		DSI_ERR("[%s] cannot read oppo,dsi-brightness-remapping\n", panel->name);
+		goto error_free_arr_32;
+	}
+
+	count = length / 2;
+	size = count * sizeof(*bl_remap);
+	bl_remap = kzalloc(size, GFP_KERNEL);
+	if (!bl_remap) {
+		rc = -ENOMEM;
+		goto error_free_arr_32;
+	}
+
+	panel->oppo_priv.bl_remap = bl_remap;
+	panel->oppo_priv.bl_remap_count = count;
+
+	for (i = 0; i < length; i += 2) {
+		bl_remap->brightness = arr_32[i];
+		bl_remap->alpha = arr_32[i + 1];
+		bl_remap++;
+	}
+
+error_free_arr_32:
+	kfree(arr_32);
+error:
+	return rc;
+}
+
 int dsi_panel_parse_oppo_config(struct dsi_panel *panel)
 {
 	struct dsi_parser_utils *utils = &panel->utils;
 
 	dsi_panel_parse_oppo_fod_config(panel);
+	dsi_panel_parse_oppo_backlight_remapping_config(panel);
 
 	panel->oppo_priv.vendor_name = utils->get_property(utils->data,
 			"oppo,mdss-dsi-vendor-name", NULL);
@@ -293,26 +390,30 @@ int dsi_panel_parse_oppo_config(struct dsi_panel *panel)
 		panel->oppo_priv.is_pxlw_iris5 ? "true" : "false");
 
 #ifdef OPLUS_FEATURE_AOD_RAMLESS
-/* Yuwei.Zhang@MULTIMEDIA.DISPLAY.LCD, 2020/09/25, sepolicy for aod ramless */
 	panel->oppo_priv.is_aod_ramless = utils->read_bool(utils->data,
 			"oppo,aod_ramless");
 	DSI_INFO("aod ramless mode: %s", panel->oppo_priv.is_aod_ramless ? "true" : "false");
 #endif /* OPLUS_FEATURE_AOD_RAMLESS */
 
 #ifdef OPLUS_BUG_STABILITY
-/* xupengcheng@MULTIMEDIA.DISPLAY.LCD, 2020/10/20,add for 19081 discard the first osc clock setting */
-	panel->oppo_priv.is_19081_lcd = utils->read_bool(utils->data,
-			"oplus,is_19081_lcd");
-	DSI_INFO("is_19081_lcd: %s",
-		panel->oppo_priv.is_19081_lcd ? "true" : "false");
+	panel->oppo_priv.is_19781_lcd = utils->read_bool(utils->data,
+			"oplus,is_19781_lcd");
+	DSI_INFO("is_19781_lcd: %s",
+		panel->oppo_priv.is_19781_lcd ? "true" : "false");
 
-/*xupengcheng@MULTIMEDIA.MM.Display.LCD.Stability,2020/09/18,add for 19696 LCD CABC feature*/
-	panel->oppo_priv.is_19696_lcd = utils->read_bool(utils->data,
-			"oplus,is_19696_lcd");
-	DSI_INFO("is_19696_lcd: %s",
-		panel->oppo_priv.is_19696_lcd ? "true" : "false");
+	 {
+		u32 val = 0;
+		int rc;
+		rc = utils->read_u32(utils->data, "oplus,dsi-pll-delay", &val);
+		panel->oppo_priv.pll_delay = !rc ? val : 0;
+		DSI_INFO("oplus_dsi_pll_delay = %d\n", panel->oppo_priv.pll_delay);
 
+		rc = utils->read_u32(utils->data, "oplus,prj-flag", &val);
+		panel->oppo_priv.prj_flag = !rc ? val : 0;
+		DSI_INFO("oplus_prj_flag = %d\n", panel->oppo_priv.prj_flag);
+	}
 #endif /* OPLUS_BUG_STABILITY */
+
 	return 0;
 }
 
@@ -426,7 +527,6 @@ int dsi_panel_parse_oppo_mode_config(struct dsi_display_mode *mode,
 
 	return 0;
 }
-/* End of Mark.Yao@PSW.MM.Display.LCD.Stable,2019-10-24 add for fingerprint */
 
 bool sde_crtc_get_dimlayer_mode(struct drm_crtc_state *crtc_state)
 {
@@ -524,6 +624,8 @@ int sde_crtc_config_fingerprint_dim_layer(struct drm_crtc_state *crtc_state,
 	fingerprint_dim_layer = &cstate->dim_layer[cstate->num_dim_layers];
 	fingerprint_dim_layer->flags = SDE_DRM_DIM_LAYER_INCLUSIVE;
 	fingerprint_dim_layer->stage = stage + SDE_STAGE_0;
+
+	DSI_DEBUG("fingerprint_dim_layer: stage = %d, alpha = %d\n", stage, alpha);
 
 	fingerprint_dim_layer->rect.x = 0;
 	fingerprint_dim_layer->rect.y = 0;
@@ -630,7 +732,6 @@ _sde_encoder_setup_dither_for_onscreenfingerprint(
 		return -EINVAL;
 
 	memcpy(&dither, dither_cfg, len);
-	/*Jian.Zhou@PSW.MM.Display.LCD.Stable,2020-01-16 add for fix green screen issue*/
 	dither.c0_bitdepth = 6;
 	dither.c1_bitdepth = 8;
 	dither.c2_bitdepth = 8;
@@ -652,5 +753,14 @@ int sde_plane_check_fingerprint_layer(const struct drm_plane_state *drm_state)
 	pstate = to_sde_plane_state(drm_state);
 
 	return sde_plane_get_property(pstate, PLANE_PROP_CUSTOM);
+}
+
+int oplus_display_panel_get_dimlayer_hbm(void *data)
+{
+	uint32_t *dimlayer_hbm = data;
+
+	(*dimlayer_hbm) = oppo_dimlayer_hbm;
+
+	return 0;
 }
 
