@@ -953,9 +953,9 @@ static bool sde_crtc_mode_fixup(struct drm_crtc *crtc,
 	SDE_DEBUG("\n");
 
 	if ((msm_is_mode_seamless(adjusted_mode) ||
-	     (msm_is_mode_seamless_vrr(adjusted_mode) ||
-	      msm_is_mode_seamless_dyn_clk(adjusted_mode))) &&
-	    (!crtc->enabled)) {
+		 (msm_is_mode_seamless_vrr(adjusted_mode) ||
+		  msm_is_mode_seamless_dyn_clk(adjusted_mode))) &&
+		(!crtc->enabled)) {
 		SDE_ERROR("crtc state prevents seamless transition\n");
 		return false;
 	}
@@ -1983,7 +1983,7 @@ static void _sde_crtc_set_src_split_order(struct drm_crtc *crtc,
 			 * as the cur pipe
 			 */
 			if ((!nxt_pstate)
-				    || (nxt_pstate->stage != cur_pstate->stage))
+					|| (nxt_pstate->stage != cur_pstate->stage))
 				cur_pstate->sde_pstate->pipe_order_flags = 0;
 
 			continue;
@@ -3152,7 +3152,7 @@ void sde_crtc_complete_commit(struct drm_crtc *crtc,
 						msecs_to_jiffies(50));
 				if (!ret)
 					pr_err("[fingerprint CRTC:%d:%s] vblank wait timed out\n",
-					       crtc->base.id, crtc->name);
+						   crtc->base.id, crtc->name);
 				if (current_vblank == drm_crtc_vblank_count(crtc)) {
 						ret = wait_event_timeout(*drm_crtc_vblank_waitqueue(crtc),
 							current_vblank != drm_crtc_vblank_count(crtc),
@@ -3160,7 +3160,7 @@ void sde_crtc_complete_commit(struct drm_crtc *crtc,
 				}
 			}
 			pr_err("fingerprint status: %s",
-			       blank ? "pressed" : "up");
+				   blank ? "pressed" : "up");
 			usleep_range(17000, 18000);
 			msm_drm_notifier_call_chain(MSM_DRM_ONSCREENFINGERPRINT_EVENT,
 					&notifier_data);
@@ -4456,7 +4456,7 @@ void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
 
 		if (idle_pc_state != IDLE_PC_NONE)
 			sde_encoder_control_idle_pc(encoder,
-			    (idle_pc_state == IDLE_PC_ENABLE) ? true : false);
+				(idle_pc_state == IDLE_PC_ENABLE) ? true : false);
 	}
 
 	/*
@@ -5146,11 +5146,11 @@ static int _sde_crtc_excl_dim_layer_check(struct drm_crtc_state *state,
 	for (i = 0; i < cstate->num_dim_layers; i++) {
 		if ((CHECK_LAYER_BOUNDS(cstate->dim_layer[i].rect.y,
 			cstate->dim_layer[i].rect.h, mode->vdisplay)) ||
-		    (CHECK_LAYER_BOUNDS(cstate->dim_layer[i].rect.x,
+			(CHECK_LAYER_BOUNDS(cstate->dim_layer[i].rect.x,
 			cstate->dim_layer[i].rect.w, mode->hdisplay)) ||
-		    (cstate->dim_layer[i].stage >= SDE_STAGE_MAX) ||
-		    (!cstate->dim_layer[i].rect.w) ||
-		    (!cstate->dim_layer[i].rect.h)) {
+			(cstate->dim_layer[i].stage >= SDE_STAGE_MAX) ||
+			(!cstate->dim_layer[i].rect.w) ||
+			(!cstate->dim_layer[i].rect.h)) {
 			SDE_ERROR("invalid dim_layer:{%d,%d,%d,%d}, stage:%d\n",
 					cstate->dim_layer[i].rect.x,
 					cstate->dim_layer[i].rect.y,
@@ -5331,9 +5331,9 @@ static int _sde_crtc_check_secure_state(struct drm_crtc *crtc,
 		state->plane_mask && crtc->state->plane_mask &&
 		((fb_sec_dir && ((smmu_state->state == ATTACHED) &&
 			(secure == SDE_DRM_SEC_ONLY))) ||
-		    (fb_ns && ((smmu_state->state == DETACHED) ||
+			(fb_ns && ((smmu_state->state == DETACHED) ||
 			(smmu_state->state == DETACH_ALL_REQ))) ||
-		    (fb_ns && ((smmu_state->state == DETACHED_SEC) ||
+			(fb_ns && ((smmu_state->state == DETACHED_SEC) ||
 			(smmu_state->state == DETACH_SEC_REQ)) &&
 			(smmu_state->secure_level == SDE_DRM_SEC_ONLY)))) {
 
@@ -5383,14 +5383,24 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 	int dimlayer_hbm = oppo_dimlayer_hbm;
 	int dimlayer_bl = 0;
 	bool dimlayer_is_top = false;
+	bool found_double_fp_layer = false;
+	int fp_layer_index[2];
 	int i;
 
 	for (i = 0; i < cnt; i++) {
 		mode = sde_plane_check_fingerprint_layer(pstates[i].drm_pstate);
+		if (mode == 0)
+			mode = sde_plane_check_fingerprint_layer_chen(pstates[i].drm_pstate);
 		if (mode == 1)
 			fp_index = i;
-		if (mode == 2)
+		if (mode == 2) {
+			if (fppressed_index != -1) {
+				fp_layer_index[0] = fppressed_index;
+				fp_layer_index[1] = i;
+				found_double_fp_layer = true;
+			}
 			fppressed_index = i;
+		}
 		if (mode == 3)
 			aod_index = i;
 		if (pstates[i].sde_pstate)
@@ -5399,6 +5409,15 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 
 	if (!is_dsi_panel(cstate->base.crtc))
 		return 0;
+	
+	if (unlikely(found_double_fp_layer)) {
+		// set fppressed_index based on these layer's zpos.
+		// check which is the top
+		if (pstates[fp_layer_index[0]].stage > pstates[fp_layer_index[1]].stage) {
+			// fp_index = fp_layer_index[1];
+			fppressed_index = fp_layer_index[0];
+		}
+	}
 
 	if (fp_index != last_fp_index 
 		|| fppressed_index != last_fppressed_index 
@@ -5414,7 +5433,7 @@ static int sde_crtc_onscreenfinger_atomic_check(struct sde_crtc_state *cstate,
 		int backlight = oppo_get_panel_brightness();
 
 		if (backlight > 1 && backlight < oppo_dimlayer_bl_alpha_value &&
-		    oppo_ffl_trigger_finish == true && !dimlayer_hbm) {
+			oppo_ffl_trigger_finish == true && !dimlayer_hbm) {
 			ktime_t now = ktime_get();
 			ktime_t delta = ktime_sub(now, oppo_backlight_time);
 
@@ -5572,7 +5591,7 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	struct drm_display_mode *mode;
 
-	int cnt = 0, rc = 0, mixer_width, i, z_pos, mixer_height;
+	int cnt = 0, rc = 0, mixer_width, i, z_pos, mixer_height, j;
 
 	struct sde_multirect_plane_states *multirect_plane = NULL;
 	int multirect_count = 0;
@@ -5719,7 +5738,7 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 
 		if (CHECK_LAYER_BOUNDS(pstate->crtc_y, pstate->crtc_h,
 				mode->vdisplay) ||
-		    CHECK_LAYER_BOUNDS(pstate->crtc_x, pstate->crtc_w,
+			CHECK_LAYER_BOUNDS(pstate->crtc_x, pstate->crtc_w,
 				mode->hdisplay)) {
 			SDE_ERROR("invalid vertical/horizontal destination\n");
 			SDE_ERROR("y:%d h:%d vdisp:%d x:%d w:%d hdisp:%d\n",
@@ -5796,9 +5815,16 @@ static int sde_crtc_atomic_check(struct drm_crtc *crtc,
 		/* verify z_pos setting before using it */
 		if (z_pos >= SDE_STAGE_MAX - SDE_STAGE_0) {
 			SDE_ERROR("> %d plane stages assigned\n",
-					SDE_STAGE_MAX - SDE_STAGE_0);
-			rc = -EINVAL;
-			goto end;
+						SDE_STAGE_MAX - SDE_STAGE_0);
+			if (oppo_dimlayer_hbm) {
+				for (j = 0; j < z_pos - (SDE_STAGE_MAX - SDE_STAGE_0); j++) {
+					pstates[j].sde_pstate->is_skip = true;
+				}
+				z_pos -= z_pos - (SDE_STAGE_MAX - SDE_STAGE_0);
+			} else {
+				rc = -EINVAL;
+				goto end;
+			}
 		} else if (pstates[i].drm_pstate->crtc_x < mixer_width) {
 			if (left_zpos_cnt == 2) {
 				SDE_ERROR("> 2 planes @ stage %d on left\n",

@@ -63,5 +63,8 @@ bool _sde_encoder_setup_dither_for_onscreenfingerprint(struct sde_encoder_phys *
 
 int sde_plane_check_fingerprint_layer(const struct drm_plane_state *drm_state);
 
+// FoD hack by chen
+int sde_plane_check_fingerprint_layer_chen(const struct drm_plane_state *drm_state);
+
 int oplus_display_panel_get_dimlayer_hbm(void *data);
 #endif /*_OPPO_ONSCREENFINGERPRINT_H_*/

@@ -115,6 +115,7 @@ static void sde_hw_lm_setup_border_color(struct sde_hw_mixer *ctx,
 	}
 }
 
+extern int oppo_dimlayer_hbm;
 static void sde_hw_lm_setup_blend_config_sdm845(struct sde_hw_mixer *ctx,
 	u32 stage, u32 fg_alpha, u32 bg_alpha, u32 blend_op)
 {
@@ -126,6 +127,9 @@ static void sde_hw_lm_setup_blend_config_sdm845(struct sde_hw_mixer *ctx,
 		return;
 
 	stage_off = _stage_offset(ctx, stage);
+	if (WARN_ON_ONCE(oppo_dimlayer_hbm && stage_off < 0))
+		return;
+
 	if (WARN_ON(stage_off < 0))
 		return;
 

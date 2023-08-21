@@ -755,6 +755,34 @@ int sde_plane_check_fingerprint_layer(const struct drm_plane_state *drm_state)
 	return sde_plane_get_property(pstate, PLANE_PROP_CUSTOM);
 }
 
+int sde_plane_check_fingerprint_layer_chen(const struct drm_plane_state *drm_state) {
+    if (!drm_state) {
+        return 0;
+    }
+
+    // pr_debug("%s: plane crtc_x %d, crtc_y %d, crtc_w %d, crtc_h %d, src_x %d, src_y %d, src_w %d, src_h %d",
+    //        __FUNCTION__,
+    //        drm_state->crtc_x,
+    //        drm_state->crtc_y,
+    //        drm_state->crtc_w,
+    //        drm_state->crtc_h,
+    //        drm_state->src_x,
+    //        drm_state->src_y,
+    //        drm_state->src_w,
+    //        drm_state->src_h
+	// );
+
+    if (drm_state->crtc_x == 445 
+			&& drm_state->crtc_y == 2061 
+			&& drm_state->crtc_w == 190 
+			&& drm_state->crtc_h == 190) {
+        // pr_debug("%s: found fp layer! normalized_zpos %d", __FUNCTION__, drm_state->normalized_zpos);
+        return 2;
+    }
+
+    return 0;
+}
+
 int oplus_display_panel_get_dimlayer_hbm(void *data)
 {
 	uint32_t *dimlayer_hbm = data;
