@@ -579,7 +579,7 @@ static int _sde_encoder_phys_cmd_handle_ppdone_timeout(
 	if (sde_connector_esd_status(phys_enc->connector) ||
 	    sde_conn->panel_dead)
 		goto exit;
-	SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic");
+	// SDE_DBG_DUMP("all", "dbg_bus", "vbif_dbg_bus", "panic");
 
 	/* to avoid flooding, only log first time, and "dead" time */
 	if (cmd_enc->pp_timeout_report_cnt == 1) {
