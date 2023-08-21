@@ -6002,6 +6002,63 @@ static const struct file_operations tp_gesture_rate_proc_fops = {
 };
 #endif
 
+static int tp_suspend(struct device *dev);
+static void tp_resume(struct device *dev);
+//proc/touchpanel/chen_suspend
+static ssize_t proc_chen_suspend_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos) {
+    int value = 0;
+    char buf[4] = {0};
+    struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+    if (count > 2)
+        return count;
+    if (!ts)
+        return count;
+
+    if (copy_from_user(buf, buffer, count)) {
+        TPD_INFO("%s: read proc input error.\n", __func__);
+        return count;
+    }
+    sscanf(buf, "%d", &value);
+    if (value > 2)
+        return count;
+
+    TPD_DETAIL("%s value: %d, chen_suspend :%d\n", __func__, value, ts->is_suspended);
+    if (value == ts->is_suspended)
+        return count;
+
+    if (value) {
+        tp_suspend(ts->dev);
+    } else {
+        tp_resume(ts->dev);
+    }
+
+    return count;
+}
+
+// read function of /proc/touchpanel/chen_suspend
+static ssize_t proc_chen_suspend_read(struct file *file, char __user *user_buf, size_t count, loff_t *ppos) {
+    int ret = 0;
+    char page[PAGESIZE] = {0};
+    struct touchpanel_data *ts = PDE_DATA(file_inode(file));
+
+    if (!ts)
+        return 0;
+
+    TPD_DEBUG("%s value: %d\n", __func__, ts->is_suspended);
+    ret = snprintf(page, PAGESIZE - 1, "%d\n", ts->is_suspended);
+    ret = simple_read_from_buffer(user_buf, count, ppos, page, strlen(page));
+
+    return ret;
+}
+
+static const struct file_operations chen_suspend_proc_fops = {
+    .read = proc_chen_suspend_read,
+    .write = proc_chen_suspend_write,
+    .open = simple_open,
+    .owner = THIS_MODULE,
+};
+
 //proc/touchpanel/debug_info
 static int init_debug_info_proc(struct touchpanel_data *ts)
 {
@@ -6195,6 +6252,12 @@ static int init_debug_info_proc(struct touchpanel_data *ts)
             ret = -ENOMEM;
             TPD_INFO("%s: Couldn't create proc entry, %d\n", __func__, __LINE__);
         }
+    }
+
+    prEntry_tmp = proc_create_data("chen_suspend", 0666, ts->prEntry_tp, &chen_suspend_proc_fops, ts);
+    if (prEntry_tmp == NULL) {
+        ret = -ENOMEM;
+        TPD_INFO("%s: Couldn't create proc entry, %d\n", __func__, __LINE__);
     }
 
     return ret;
