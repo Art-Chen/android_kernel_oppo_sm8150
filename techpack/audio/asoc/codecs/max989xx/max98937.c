@@ -1366,18 +1366,18 @@ static void max989xx_debug_init(struct max989xx_priv *max98927, struct i2c_clien
 #else
 	max98927->dbg_dir = proc_mkdir(name, NULL);
 	// Art_Chen modify for denied Tencent Protect open all the proc node breaks the speaker 
-	proc_create_data("calibrate", S_IRUSR|S_IRGRP, max98927->dbg_dir,
+	proc_create_data("calibrate", S_IRUSR, max98927->dbg_dir,
 		&max989xx_dbg_calibrate_fops, i2c);
-    proc_create_data("impedance", S_IRUSR | S_IRGRP, max98927->dbg_dir,
+    proc_create_data("impedance", S_IRUSR, max98927->dbg_dir,
                      &max989xx_dbg_impedance_fops, i2c);
-    proc_create_data("f0detect", S_IRUSR | S_IRGRP, max98927->dbg_dir,
+    proc_create_data("f0detect", S_IRUSR, max98927->dbg_dir,
                      &max989xx_dbg_f0_fops, i2c);
-    proc_create_data("temperature", S_IRUSR | S_IRGRP, max98927->dbg_dir,
+    proc_create_data("temperature", S_IRUSR, max98927->dbg_dir,
                      &max989xx_dbg_temperature_fops, i2c);
-    proc_create_data("status", S_IRUSR | S_IRGRP, max98927->dbg_dir,
+    proc_create_data("status", S_IRUSR, max98927->dbg_dir,
                      &max989xx_dbg_status_fops, i2c);
 	#ifdef OPLUS_ARCH_EXTENDS
-    proc_create_data("range", S_IRUSR | S_IRGRP, max98927->dbg_dir,
+    proc_create_data("range", S_IRUSR, max98927->dbg_dir,
                      &max989xx_dbg_range_fops, i2c);
 	#endif /* OPLUS_ARCH_EXTENDS */
 #endif
