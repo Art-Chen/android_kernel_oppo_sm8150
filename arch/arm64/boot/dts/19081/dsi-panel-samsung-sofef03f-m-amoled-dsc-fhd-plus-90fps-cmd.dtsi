@@ -55,8 +55,8 @@
 		qcom,mdss-dsi-wr-mem-start = <0x2c>;
 		qcom,mdss-dsi-wr-mem-continue = <0x3c>;
 		qcom,mdss-dsi-te-dcs-command = <1>;
-		qcom,mdss-pan-physical-width-dimension = <680>;
-		qcom,mdss-pan-physical-height-dimension = <1520>;
+		qcom,mdss-pan-physical-width-dimension = <68>;
+		qcom,mdss-pan-physical-height-dimension = <152>;
 		qcom,dynamic-mode-switch-enabled;
 		qcom,dynamic-mode-switch-type = "dynamic-switch-immediate";
 		qcom,mdss-dsi-panel-hdr-enabled;
