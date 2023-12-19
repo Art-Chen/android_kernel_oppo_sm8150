@@ -4421,8 +4421,11 @@ static void _sde_plane_install_properties(struct drm_plane *plane,
 	msm_property_install_range(&psde->property_info, "zpos",
 		0x0, 0, zpos_max, zpos_def, PLANE_PROP_ZPOS);
 #ifdef OPLUS_BUG_STABILITY
-	msm_property_install_range(&psde->property_info, "fod",
-		0x0, 0, INT_MAX, 0, PLANE_PROP_CUSTOM);
+    // msm_property_install_range(&psde->property_info, "fod",
+    // 	0x0, 0, INT_MAX, 0, PLANE_PROP_CUSTOM);
+    // OPPO Stock drm prop named PLANE_CUST
+    msm_property_install_range(&psde->property_info, "PLANE_CUST",
+                               0x0, 0, INT_MAX, 0, PLANE_PROP_CUSTOM);
 #endif
 
 	msm_property_install_range(&psde->property_info, "alpha",
