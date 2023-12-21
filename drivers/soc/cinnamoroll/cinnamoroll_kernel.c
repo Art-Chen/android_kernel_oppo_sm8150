@@ -14,17 +14,13 @@ int __init cinnamoroll_khelper_init(void)
 }
 
 int get_en_id(void) {
-        return socinfo_get_serial_number() ^ MY_KEY;
+    return 0;
 }
 
 void check_device(void) {
-        if (cinnamoroll == get_en_id()) {
-                invalid = 0;
-        }
+	invalid = 0;
 }
 
 MODULE_AUTHOR("Art_Chen <Chenxy0201@qq.com>");
 MODULE_LICENSE("Proprietary");
 
-module_param(cinnamoroll, uint, 0644);
-module_init(cinnamoroll_khelper_init);

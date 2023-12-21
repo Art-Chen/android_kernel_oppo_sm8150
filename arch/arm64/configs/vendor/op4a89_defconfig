@@ -1,4 +1,4 @@
-CONFIG_LOCALVERSION="-Art_Chen-Reborn_2.0-C12_Firmware-Chen_Mod"
+CONFIG_LOCALVERSION="-Art_Chen-R3.0-Chen_Mod-AOSP"
 # CONFIG_LOCALVERSION_AUTO is not set
 # CONFIG_FHANDLE is not set
 CONFIG_AUDIT=y
