@@ -5,6 +5,7 @@
 #
 
 obj-y 	+= platform.o
+#obj-y 	+= wb_kernel_log.o
 obj-$(CONFIG_OPLUS_FEATURE_SHUTDOWN_DETECT)    += shutdown_detect/
 obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= oplus_project/
 obj-$(CONFIG_OPLUS_FEATURE_RECORD_MDMRST)     += mdmrst/
