@@ -20,6 +20,7 @@
 		qcom,bus-mas-id = <MSM_BUS_MASTER_QUP_0>;
 		qcom,bus-slv-id = <MSM_BUS_SLAVE_EBI_CH0>;
 		qcom,iommu-s1-bypass;
+		status = "ok";
 
 		iommu_qupv3_0_geni_se_cb: qcom,iommu_qupv3_0_geni_se_cb {
 			compatible = "qcom,qupv3-geni-se-cb";
@@ -388,6 +389,7 @@
 		qcom,bus-mas-id = <MSM_BUS_MASTER_QUP_1>;
 		qcom,bus-slv-id = <MSM_BUS_SLAVE_EBI_CH0>;
 		qcom,iommu-s1-bypass;
+		status = "ok";
 
 		iommu_qupv3_1_geni_se_cb: qcom,iommu_qupv3_1_geni_se_cb {
 			compatible = "qcom,qupv3-geni-se-cb";
@@ -722,6 +724,7 @@
 		qcom,bus-mas-id = <MSM_BUS_MASTER_QUP_2>;
 		qcom,bus-slv-id = <MSM_BUS_SLAVE_EBI_CH0>;
 		qcom,iommu-s1-bypass;
+		status = "ok";
 
 		iommu_qupv3_2_geni_se_cb: qcom,iommu_qupv3_2_geni_se_cb {
 			compatible = "qcom,qupv3-geni-se-cb";
