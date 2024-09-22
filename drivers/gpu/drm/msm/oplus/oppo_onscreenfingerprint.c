@@ -33,6 +33,7 @@ int oppo_aod_dim_alpha = CUST_A_NO;
 extern int oppo_panel_alpha;
 extern int hbm_mode;
 extern bool oppo_ffl_trigger_finish;
+extern bool enable_chen_detect_fp_layer;
 
 static struct oppo_brightness_alpha brightness_alpha_lut[] = {
 	{0, 0xff},
@@ -756,9 +757,9 @@ int sde_plane_check_fingerprint_layer(const struct drm_plane_state *drm_state)
 }
 
 int sde_plane_check_fingerprint_layer_chen(const struct drm_plane_state *drm_state) {
-    if (!drm_state) {
-        return 0;
-    }
+	if (!drm_state || !enable_chen_detect_fp_layer) {
+		return 0;
+	}
 
     // pr_debug("%s: plane crtc_x %d, crtc_y %d, crtc_w %d, crtc_h %d, src_x %d, src_y %d, src_w %d, src_h %d",
     //        __FUNCTION__,
@@ -772,15 +773,15 @@ int sde_plane_check_fingerprint_layer_chen(const struct drm_plane_state *drm_sta
     //        drm_state->src_h
 	// );
 
-    if (drm_state->crtc_x == 445 
-			&& drm_state->crtc_y == 2061 
-			&& drm_state->crtc_w == 190 
+	if (drm_state->crtc_x == 445
+			&& drm_state->crtc_y == 2061
+			&& drm_state->crtc_w == 190
 			&& drm_state->crtc_h == 190) {
-        // pr_debug("%s: found fp layer! normalized_zpos %d", __FUNCTION__, drm_state->normalized_zpos);
-        return 2;
-    }
+		// pr_debug("%s: found fp layer! normalized_zpos %d", __FUNCTION__, drm_state->normalized_zpos);
+		return 2;
+	}
 
-    return 0;
+	return 0;
 }
 
 int oplus_display_panel_get_dimlayer_hbm(void *data)

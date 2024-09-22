@@ -66,6 +66,7 @@ u32 oppo_last_backlight = 0;
 u32 oppo_backlight_delta = 0;
 
 int oppo_dimlayer_hbm = 0;
+bool enable_chen_detect_fp_layer = false;
 
 extern PANEL_VOLTAGE_BAK panel_vol_bak[PANEL_VOLTAGE_ID_MAX];
 extern u32 panel_pwr_vg_base;
@@ -1511,6 +1512,22 @@ static ssize_t oppo_display_set_debug(struct device *dev,
 	return count;
 }
 
+static ssize_t oppo_display_get_chen_detect_fp_layer(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *display = get_main_display();
+
+	return sprintf(buf, "%d\n", enable_chen_detect_fp_layer);
+}
+
+static ssize_t oppo_display_set_chen_detect_fp_layer(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	sscanf(buf, "%d", &enable_chen_detect_fp_layer);
+
+	return count;
+}
 
 static ssize_t oppo_display_get_dimlayer_enable(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -3298,6 +3315,8 @@ static DEVICE_ATTR(sau_closebl_node, S_IRUGO | S_IWUSR,
 	oppo_display_get_closebl_flag, oppo_display_set_closebl_flag);
 static DEVICE_ATTR(write_panel_reg, S_IRUGO | S_IWUSR,
 	oppo_display_get_panel_reg, oppo_display_set_panel_reg);
+static DEVICE_ATTR(chen_detect_fp_layer, S_IRUGO | S_IWUSR, 
+  oppo_display_get_chen_detect_fp_layer, oppo_display_set_chen_detect_fp_layer);
 static DEVICE_ATTR(dsi_cmd, S_IRUGO | S_IWUSR, oppo_display_get_dsi_command,
 	oppo_display_set_dsi_command);
 static DEVICE_ATTR(dim_alpha, S_IRUGO | S_IWUSR, oppo_display_get_dim_alpha,
