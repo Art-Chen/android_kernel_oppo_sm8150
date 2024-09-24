@@ -94,10 +94,12 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 void tlb_flush_pmd_range(struct mmu_gather *tlb, unsigned long address,
 			 unsigned long size)
 {
+#ifdef CONFIG_MMU_GATHER_PAGE_SIZE
 	if (tlb->page_size != 0 && tlb->page_size != PMD_SIZE)
 		tlb_flush_mmu(tlb);
 
 	tlb->page_size = PMD_SIZE;
+#endif
 	tlb->start = min(tlb->start, address);
 	tlb->end = max(tlb->end, address + size);
 }
@@ -150,7 +152,7 @@ static void tlb_remove_table_smp_sync(void *arg)
 	/* Simply deliver the interrupt */
 }
 
-static void tlb_remove_table_sync_one(void)
+void tlb_remove_table_sync_one(void)
 {
 	/*
 	 * This isn't an RCU grace period and hence the page-tables cannot be
@@ -344,9 +346,4 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
 	tlb_batch_list_free(tlb);
 #endif
 	dec_tlb_flush_pending(tlb->mm);
-}
-
-void tlb_remove_table_sync_one(void)
-{
-	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
 }
