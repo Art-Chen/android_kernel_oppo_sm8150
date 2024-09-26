@@ -36,6 +36,8 @@ extern int oppo_underbrightness_alpha;
 int oppo_dimlayer_fingerprint_failcount = 0;
 extern int msm_drm_notifier_call_chain(unsigned long val, void *v);
 extern int cmp_display_panel_name(char *istr);
+extern int dsi_display_set_backlight(struct drm_connector *connector,
+		void *display, u32 bl_lvl);
 bool oppo_dc_v2_on = false;
 int oppo_dc2_alpha;
 int oppo_dimlayer_bl_enable_v3 = 0;
@@ -2571,6 +2573,8 @@ int dsi_display_oppo_set_power(struct drm_connector *connector,
 			rc = dsi_panel_set_lp1(display->panel);
 			rc = dsi_panel_set_lp2(display->panel);
 			set_oppo_display_scene(OPPO_DISPLAY_AOD_SCENE);
+			pr_info("active bl for aod");
+			dsi_display_set_backlight(connector, disp, 1);
 			break;
 		case OPPO_DISPLAY_AOD_HBM_SCENE:
 			blank = MSM_DRM_BLANK_POWERDOWN;
